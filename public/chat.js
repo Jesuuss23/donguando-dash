@@ -3,6 +3,8 @@ let isFetching = false;
 window.currentContactId = null;
 let selectedProduct = null;
 let currentSelectedPrice = 0;
+let currentContactName = null;
+let currentContactPhone = null;
 /* TOGGLE IA */
 function toggleIntervention() {
     if (!currentContactId) return;
@@ -29,6 +31,8 @@ function toggleIntervention() {
 function loadChat(contactId, name, isIntervened) {
     window.currentContactId = contactId;
     currentContactId = contactId;
+    currentContactName = name;
+    currentContactPhone = phone;
 
     const contactCard = $(`.contact-card[onclick*="loadChat(${contactId},"]`);
     const realPhone = contactCard.find('p.text-xs').text().trim(); // Asumiendo que el número está en un <p> con esa clase
@@ -582,56 +586,18 @@ function insertTag(tag) {
     textarea.setSelectionRange(start + tag.length, start + tag.length);
 }
 
-function sendToN8N(messageContent) {
-    let phoneNumber = window.currentContactId;
- if (!phoneNumber || phoneNumber == 1) {
-        alert("⚠️ Selecciona el contacto de nuevo para capturar el número.");
-        return;
-    }
-
-    if (!phoneNumber) {
-        alert("Primero selecciona un chat para saber a quién enviar.");
-        console.log("Error: phoneNumber está vacío.");
-        return;
-    }
-
-    const N8N_WEBHOOK_URL = "https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook-test/sync-contact-whatsapp"; 
-
-    // Verificamos en consola qué estamos mandando
-    console.log("Enviando a n8n...", { phone: phoneNumber, body: messageContent });
-    
-    fetch(N8N_WEBHOOK_URL, {
+function sendToN8N(data) {
+    fetch('/api/sync-n8n', { 
         method: 'POST',
-        headers: {
+        headers: { 
             'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         },
-        body: JSON.stringify({
-            phone: phoneNumber, // Aquí ya debería ir el número real
-            body: messageContent
-        })
+        body: JSON.stringify(data)
     })
-    .then(response => {
-        if(response.ok) alert("🚀 ¡Mensaje enviado a n8n!");
-        else alert("❌ Error en el servidor de n8n: " + response.status);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert("❌ Error de conexión con n8n");
-    });
-}
-
-// BORRAR
-function deleteTemplate(id) {
-    if (confirm("¿Seguro que quieres borrar esta plantilla?")) {
-        $.ajax({
-            url: `/quick-responses/delete/${id}`,
-            method: 'DELETE',
-            data: { _token: $('meta[name="csrf-token"]').attr('content') },
-            success: function() {
-                loadQuickMessages($('#selected-product-name').text(), currentSelectedPrice);
-            }
-        });
-    }
+    .then(response => response.json())
+    .then(result => console.log('Sincronización exitosa:', result))
+    .catch(error => console.error('Error en el puente:', error));
 }
 
 // EDITAR (Abre el mismo modal de antes pero con los datos)
@@ -640,4 +606,21 @@ function editTemplate(id, title, body) {
     $('#q-title').val(title);
     $('#q-body').val(body);
     openConfigQuickMessages();
+}
+
+function syncContact() {
+    const data = {
+        name: currentContactName,  // Asegúrate de tener estas variables globales
+        phone: currentContactPhone,
+        body: "Sincronización de contacto desde Dashboard",
+        path: 'sync-contact-whatsapp' // Esto es extra, pero sirve para debug
+    };
+
+    fetch('/api/sync-n8n', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => console.log('Respuesta:', result));
 }

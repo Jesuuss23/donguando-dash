@@ -6,6 +6,7 @@ use App\Models\Tag;
 use App\Models\Product;
 use App\Models\QuickResponse;
 use Illuminate\Support\Facades\DB; 
+
 Route::get('/dashboard', function () {
     $contacts = Contact::with('messages')->latest()->get();
     return view('chat', compact('contacts'));
@@ -174,4 +175,19 @@ Route::get('/inventory/products', function (Illuminate\Http\Request $request) {
 
     // Si no hay búsqueda, devolvemos todo (o los primeros 10)
     return \App\Models\Product::orderBy('name', 'asc')->get();
+});
+
+use Illuminate\Support\Facades\Http;
+
+Route::post('/api/sync-n8n', function (Illuminate\Http\Request $request) {
+    $url_n8n = 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook-test/sync-contact-whatsapp';
+    
+    // Enviamos el objeto tal cual viene del JS
+    $response = Illuminate\Support\Facades\Http::post($url_n8n, [
+        'name'  => $request->input('name'),
+        'phone' => $request->input('phone'),
+        'body'  => $request->input('body'),
+    ]);
+
+    return $response->json();
 });
