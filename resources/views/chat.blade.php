@@ -9,8 +9,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <link rel="stylesheet" href="{{ asset('style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 </head>
-<body class="bg-gray-100 h-screen flex overflow-hidden">
+<body class="bg-gradient-to-br from-slate-50 to-gray-100 h-screen flex overflow-hidden">
 
     <!-- PRIMERA COLUMNA: Lista de Contactos -->
     <div class="w-1/4 bg-white border-r flex flex-col shadow-lg z-10">
@@ -49,6 +50,9 @@
                      class="p-4 border-b hover:bg-gray-50 cursor-pointer transition flex justify-between items-center contact-card">
                     <div>
                         <p class="font-bold text-gray-800">{{ $contact->name }}</p>
+                                    @if($contact->is_pinned)
+                <span class="text-xs text-blue-500" title="Chat anclado">📌</span>
+            @endif
                         <p class="text-xs text-gray-500">{{ $contact->whatsapp_id }}</p>
                         <!-- Después del número de teléfono -->
 <div class="text-[9px] text-green-600 mt-1">
@@ -97,6 +101,10 @@
 
                     <div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-xl z-50 overflow-hidden">
                         <div class="py-1 text-gray-700">
+                                    <button onclick="togglePinChatFromMenu()" id="btn-pin-chat" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm hover:bg-gray-100 transition-colors">
+            <span>📌</span> <span id="pin-chat-text">Anclar chat</span>
+        </button>
+        <div class="border-t"></div>
                             <button onclick="clearChat()" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm hover:bg-gray-100 transition-colors italic">
                                 <span>🧹</span> <span>Vaciar chat</span>
                             </button>

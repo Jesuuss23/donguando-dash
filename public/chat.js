@@ -171,6 +171,13 @@ function loadChat(contactId, name, isIntervened) {
     
     // Marcar como leído
     $.post('/chat/mark-as-read/' + contactId);
+
+    // Actualizar estado del botón anclar en el menú
+$.get('/contact-info/' + contactId, function(contact) {
+    if (contact) {
+        updatePinButtonState(contact.is_pinned);
+    }
+});
 }
 
 // ========== FUNCIONES DE TAGS ==========
@@ -475,6 +482,7 @@ function insertIntoChat(text) {
 
 // ========== INICIALIZACIÓN ==========
 $(document).ready(function() {
+    loadOrderedContacts();
     console.log("🚀 Don Guando Dashboard iniciado");
     loadTagFilters();
     // Buscador de contactos
@@ -575,13 +583,25 @@ $('#search-contacts').on('input', function() {
         });
     });
     
-    // Refresh automático de mensajes
-    setInterval(() => {
+// Refresh automático de mensajes Y lista de contactos (solo si NO hay filtro activo)
+setInterval(() => {
+    if (!document.hidden) {
+        // Verificar si hay un filtro de búsqueda activo
+        const searchQuery = $('#search-contacts').val();
+        const isFilterActive = searchQuery && searchQuery.length > 0;
+        
+        // Si NO hay filtro activo, recargar la lista ordenada
+        if (!isFilterActive && currentTagFilter === null) {
+            loadOrderedContacts();
+        }
+        
+        // Siempre refrescar mensajes del chat activo
         if (currentContactId) {
             fetchMessages(currentContactId);
             updateBotStatus(currentContactId);
         }
-    }, 3000);
+    }
+}, 3000);
     
     // Cerrar dropdown al hacer clic fuera
     $(document).click(function(event) {
@@ -652,19 +672,17 @@ function loadTagFilters() {
 }
 
 function filterByTag(tagId) {
+    // Guardar el filtro activo
     currentTagFilter = tagId;
     
     // Marcar botón activo
-    $('#tag-filters-list button').removeClass('ring-2 ring-red-500');
-    if (tagId) {
-        $(`#tag-filters-list button[onclick="filterByTag(${tagId})"]`).addClass('ring-2 ring-red-500');
+    $('#tag-filters-list button').removeClass('ring-2 ring-red-500 font-bold');
+    if (tagId && tagId !== '') {
+        $(`#tag-filters-list button[onclick="filterByTag(${tagId})"]`).addClass('ring-2 ring-red-500 font-bold');
     } else {
-        $('#tag-filters-list button[onclick="filterByTag(\'\')"]').addClass('ring-2 ring-red-500');
-    }
-    
-    if (!tagId || tagId === '') {
-        // Mostrar todos los contactos
-        location.reload();
+        $('#tag-filters-list button[onclick="filterByTag(\'\')"]').addClass('ring-2 ring-red-500 font-bold');
+        currentTagFilter = null;
+        loadOrderedContacts();
         return;
     }
     
@@ -676,15 +694,20 @@ function filterByTag(tagId) {
             html = '<div class="text-center text-gray-400 py-8">No hay contactos con esta etiqueta</div>';
         } else {
             contacts.forEach(contact => {
+                const isIntervened = contact.is_intervened == 0;
+                const statusClass = isIntervened ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
+                const statusText = isIntervened ? 'AUTO' : 'MANUAL';
+                
                 html += `
-                    <div onclick="loadChat(${contact.id}, '${escapeHtml(contact.name)}', ${contact.is_intervened})"
+                    <div onclick="loadChat(${contact.id}, '${escapeHtml(contact.name)}', ${isIntervened})"
                          class="p-4 border-b hover:bg-gray-50 cursor-pointer transition flex justify-between items-center contact-card">
                         <div>
                             <p class="font-bold text-gray-800">${escapeHtml(contact.name)}</p>
                             <p class="text-xs text-gray-500">${escapeHtml(contact.whatsapp_id)}</p>
+                            ${isIntervened ? `<div class="text-[9px] text-green-600 mt-1">🤖 IA: ${contact.ia_messages_count ?? 0}</div>` : ''}
                         </div>
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${contact.is_intervened ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
-                            ${contact.is_intervened ? 'MANUAL' : 'AUTO'}
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">
+                            ${statusText}
                         </span>
                     </div>
                 `;
@@ -695,9 +718,85 @@ function filterByTag(tagId) {
     });
 }
 
+// ========== CARGAR CONTACTOS ORDENADOS ==========
+function loadOrderedContacts() {
+    // Si hay un filtro de tag activo, NO recargar
+    if (currentTagFilter !== null && currentTagFilter !== '') {
+        console.log('Filtro de etiqueta activo, no se recarga automáticamente');
+        return;
+    }
+    
+    // Si hay búsqueda activa, NO recargar
+    const searchQuery = $('#search-contacts').val();
+    if (searchQuery && searchQuery.length > 0) {
+        console.log('Búsqueda activa, no se recarga automáticamente');
+        return;
+    }
+    
+    $.get('/contacts/ordered', function(contacts) {
+        let html = '';
+        
+        contacts.forEach(contact => {
+            const isIntervened = contact.is_intervened == 0;
+            const statusClass = isIntervened ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
+            const statusText = isIntervened ? 'AUTO' : 'MANUAL';
+            const isPinned = contact.is_pinned;
+            
+            html += `
+                <div onclick="loadChat(${contact.id}, '${escapeHtml(contact.name)}', ${isIntervened})"
+                     class="p-4 border-b hover:bg-gray-50 cursor-pointer transition flex justify-between items-center contact-card ${isPinned ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <p class="font-bold text-gray-800 ${isPinned ? 'text-blue-700' : ''}">
+                                ${escapeHtml(contact.name)}
+                            </p>
+                            ${isPinned ? '<span class="text-xs text-blue-500" title="Chat anclado">📌</span>' : ''}
+                        </div>
+                        <p class="text-xs text-gray-500">${escapeHtml(contact.whatsapp_id)}</p>
+                        ${isIntervened ? `<div class="text-[9px] text-green-600 mt-1">🤖 IA: ${contact.ia_messages_count ?? 0}</div>` : ''}
+                    </div>
+                    <div class="flex flex-col items-end gap-1">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        $('#contact-list').html(html);
+    });
+}
 
+// ========== ACTUALIZAR BOTÓN ANCLAR EN MENÚ ==========
+function updatePinButtonState(isPinned) {
+    if (isPinned) {
+        $('#pin-chat-text').text('Desanclar chat');
+        $('#btn-pin-chat span:first-child').text('📍');
+    } else {
+        $('#pin-chat-text').text('Anclar chat');
+        $('#btn-pin-chat span:first-child').text('📌');
+    }
+}
 
+// ========== ANCLAR/DESANCLAR DESDE EL MENÚ ==========
+function togglePinChatFromMenu() {
+    if (!currentContactId) {
+        showToast('Primero selecciona un chat', 'warning');
+        return;
+    }
+    
+    $.post('/chat/toggle-pin/' + currentContactId, function(data) {
+        loadOrderedContacts(); // Recargar lista para mostrar/ocultar el pin
+        updatePinButtonState(data.is_pinned);
+        showToast(data.is_pinned ? '📌 Chat anclado' : '📍 Chat desanclado', 'success');
+    }).fail(function() {
+        showToast('Error al anclar/desanclar', 'error');
+    });
+}
 // ========== FUNCIONES GLOBALES (para onclick en HTML) ==========
+window.togglePinChatFromMenu = togglePinChatFromMenu;
+window.togglePinChat = togglePinChat;
 window.loadChat = loadChat;
 window.toggleIntervention = toggleIntervention;
 window.updateButtonUI = updateButtonUI;

@@ -1,59 +1,220 @@
-#chat-messages {
-    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-    background-repeat: repeat;
-    background-attachment: local;
+/* ============================================
+   DON GUANDO DASH - DESIGN SYSTEM
+   Carnicería Premium
+   ============================================ */
+
+/* ========== BASE ========== */
+* {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-::-webkit-scrollbar {
-    width: 6px;
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
-::-webkit-scrollbar-thumb {
-    background: #cccccc;
+
+/* ========== SCROLLBAR PERSONALIZADO ========== */
+::-webkit-scrollbar {
+    width: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: #e2e8f0;
     border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover {
-    background: #b3b3b3;
-}
 
-.message-bubble {
-    animation: fadeIn 0.2s ease-in-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.contact-card.active {
-    background-color: #f3f4f6;
-    border-left: 4px solid #b91c1c; 
-}
-
-#chat-messages {
-    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-    background-repeat: repeat;
-    background-attachment: local;
-}
-
-::-webkit-scrollbar {
-    width: 6px;
-}
 ::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 10px;
 }
 
-.message-bubble {
-    animation: slideUp 0.15s ease-out;
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* ========== CONTACTO CARD ========== */
+.contact-card {
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.contact-card:hover {
+    background-color: #f8fafc;
+    transform: translateX(2px);
 }
 
 .contact-card.active {
-    background-color: #f1f5f9;
-    border-left: 5px solid #b91c1c;
+    background: linear-gradient(90deg, #fef2f2 0%, #ffffff 100%);
+    border-left-color: #dc2626;
 }
 
+/* ========== MENSAJES ========== */
+#chat-messages {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    position: relative;
+}
+
+#chat-messages::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.03"><path fill="none" d="M20,20 L80,20 M20,40 L80,40 M20,60 L80,60 M20,80 L80,80" stroke="%236b21a8" stroke-width="1"/><path d="M50,10 L50,90 M30,10 L30,90 M70,10 L70,90" stroke="%236b21a8" stroke-width="1" opacity="0.5"/></svg>');
+    background-repeat: repeat;
+    pointer-events: none;
+}
+
+.message-bubble {
+    animation: messageSlide 0.2s ease-out;
+    position: relative;
+    z-index: 1;
+}
+
+.message-bubble .bg-green-200 {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border-bottom-right-radius: 4px;
+}
+
+.message-bubble .bg-white {
+    background: white;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+@keyframes messageSlide {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========== HEADER CHAT ========== */
+#chat-header {
+    background: linear-gradient(90deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+#contact-name-header {
+    background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* ========== PANEL DE VENTAS ========== */
+#quick-messages-list > div {
+    transition: all 0.2s ease;
+    border: 1px solid #e2e8f0;
+}
+
+#quick-messages-list > div:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    border-color: #dc2626;
+}
+
+/* ========== ANIMACIONES ========== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* ========== BADGES ========== */
+.badge-unread {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* ========== MODALES ========== */
+.modal-enter {
+    animation: fadeInUp 0.2s ease-out;
+}
+
+#modal-inventory, #modal-product-form, #modal-quick-config {
+    animation: fadeInUp 0.2s ease-out;
+}
+
+/* ========== TOAST NOTIFICATIONS ========== */
+#toast-container > div {
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ========== ESTADOS ========== */
+.status-auto {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #166534;
+}
+
+.status-manual {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+}
+
+/* ========== CONTADOR IA ========== */
+.ia-counter {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 9px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ========== BOTONES ========== */
+button {
+    transition: all 0.2s ease;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+/* ========== INPUTS ========== */
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    ring: 2px solid #dc2626;
+    ring-offset: 2px;
+}
+
+/* ========== CHAT ANCLADO ========== */
+.contact-card.pinned {
+    background: linear-gradient(90deg, #eff6ff 0%, #ffffff 100%);
+    border-left-color: #3b82f6;
+}
+
+.contact-card.pinned .contact-name {
+    color: #1e40af;
+}

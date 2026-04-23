@@ -250,3 +250,28 @@ Route::get('/chat/ia-stats/{contactId}', function ($contactId) {
         'ia_active' => $contact->is_intervened
     ]);
 });
+
+Route::get('/contacts/ordered', function () {
+    $contacts = Contact::with(['messages' => function($q) {
+        $q->latest()->limit(1);
+    }])->get();
+    
+    // Ordenar: anclados primero, luego por último mensaje
+    $contacts = $contacts->sortByDesc(function($contact) {
+        $lastMessage = $contact->messages->first();
+        return [
+            $contact->is_pinned ? 1 : 0,  // Anclados primero
+            $lastMessage ? $lastMessage->created_at : $contact->created_at
+        ];
+    });
+    
+    return response()->json($contacts->values());
+});
+
+// Anclar/Desanclar chat
+Route::post('/chat/toggle-pin/{contactId}', function ($contactId) {
+    $contact = Contact::findOrFail($contactId);
+    $contact->is_pinned = !$contact->is_pinned;
+    $contact->save();
+    return response()->json(['is_pinned' => $contact->is_pinned]);
+});

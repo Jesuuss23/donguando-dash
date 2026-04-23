@@ -11,7 +11,8 @@ class Contact extends Model
         'whatsapp_id', 
         'is_intervened',
         'ia_messages_count',   // ← AGREGAR ESTO
-        'ia_last_reset'        // ← AGREGAR ESTO
+        'ia_last_reset',        // ← AGREGAR ESTO
+        'is_pinned'
     ];
 
     public function messages() {
