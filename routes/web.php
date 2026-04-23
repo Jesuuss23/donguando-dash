@@ -241,3 +241,12 @@ Route::get('/contacts/by-tag/{tagId}', function ($tagId) {
     $tag = Tag::with('contacts.messages')->findOrFail($tagId);
     return $tag->contacts()->with('messages')->latest()->get();
 });
+
+// En web.php, agrega al final
+Route::get('/chat/ia-stats/{contactId}', function ($contactId) {
+    $contact = Contact::findOrFail($contactId);
+    return response()->json([
+        'count' => $contact->ia_messages_count ?? 0,
+        'ia_active' => $contact->is_intervened
+    ]);
+});

@@ -50,7 +50,12 @@
                     <div>
                         <p class="font-bold text-gray-800">{{ $contact->name }}</p>
                         <p class="text-xs text-gray-500">{{ $contact->whatsapp_id }}</p>
+                        <!-- Después del número de teléfono -->
+<div class="text-[9px] text-green-600 mt-1">
+    🤖 IA: {{ $contact->ia_messages_count ?? 0 }}
+</div>
                     </div>
+                    
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ $contact->is_intervened ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600' }}">
                         {{ $contact->is_intervened ? 'MANUAL' : 'AUTO' }}
                     </span>
