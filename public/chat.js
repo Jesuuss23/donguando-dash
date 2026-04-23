@@ -11,6 +11,12 @@ let isFetching = false;
 let currentSelectedPrice = 0;
 
 // ========== FUNCIONES AUXILIARES ==========
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 function formatLinks(text) {
     if (!text) return '---';
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -186,6 +192,7 @@ function renderTags(contactId) {
                 `);
             });
         }
+        loadTagFilters();
     }).fail(xhr => console.error("Error al obtener etiquetas:", xhr.responseText));
 }
 
@@ -469,7 +476,12 @@ function insertIntoChat(text) {
 // ========== INICIALIZACIÓN ==========
 $(document).ready(function() {
     console.log("🚀 Don Guando Dashboard iniciado");
-    
+    loadTagFilters();
+    // Buscador de contactos
+$('#search-contacts').on('input', function() {
+    const query = $(this).val();
+    searchContacts(query);
+});
     // Buscador de inventario
     $('#inventory-search').on('keyup', function() {
         let value = $(this).val().toLowerCase();
@@ -578,6 +590,112 @@ $(document).ready(function() {
         }
     });
 });
+// ========== BÚSQUEDA DE CONTACTOS ==========
+function searchContacts(query) {
+    if (query.length === 0) {
+        // Si no hay búsqueda, recargar todos los contactos
+        location.reload();
+        return;
+    }
+    
+    $.get('/contacts/search?q=' + encodeURIComponent(query), function(contacts) {
+        let html = '';
+        
+        contacts.forEach(contact => {
+            html += `
+                <div onclick="loadChat(${contact.id}, '${contact.name}', ${contact.is_intervened})"
+                     class="p-4 border-b hover:bg-gray-50 cursor-pointer transition flex justify-between items-center contact-card">
+                    <div>
+                        <p class="font-bold text-gray-800">${escapeHtml(contact.name)}</p>
+                        <p class="text-xs text-gray-500">${escapeHtml(contact.whatsapp_id)}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${contact.is_intervened ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
+                        ${contact.is_intervened ? 'MANUAL' : 'AUTO'}
+                    </span>
+                </div>
+            `;
+        });
+        
+        if (contacts.length === 0) {
+            html = '<div class="text-center text-gray-400 py-8">No se encontraron contactos</div>';
+        }
+        
+        $('#contact-list').html(html);
+    });
+}
+
+// ========== FUNCIONES DE FILTROS POR TAG ==========
+let currentTagFilter = null;
+
+function loadTagFilters() {
+    $.get('/tags/all', function(tags) {
+        if (tags.length === 0) {
+            $('#tag-filters-container').addClass('hidden');
+            return;
+        }
+        
+        $('#tag-filters-container').removeClass('hidden');
+        let filtersHtml = '<button onclick="filterByTag(\'\')" class="text-[9px] px-2 py-1 rounded-full bg-gray-200 hover:bg-gray-300 transition-all">Todos</button>';
+        
+        tags.forEach(tag => {
+            filtersHtml += `
+                <button onclick="filterByTag(${tag.id})" 
+                        class="text-[9px] px-2 py-1 rounded-full transition-all"
+                        style="background-color: ${tag.color}20; color: ${tag.color}; border: 1px solid ${tag.color}">
+                    ${escapeHtml(tag.name)}
+                </button>
+            `;
+        });
+        
+        $('#tag-filters-list').html(filtersHtml);
+    });
+}
+
+function filterByTag(tagId) {
+    currentTagFilter = tagId;
+    
+    // Marcar botón activo
+    $('#tag-filters-list button').removeClass('ring-2 ring-red-500');
+    if (tagId) {
+        $(`#tag-filters-list button[onclick="filterByTag(${tagId})"]`).addClass('ring-2 ring-red-500');
+    } else {
+        $('#tag-filters-list button[onclick="filterByTag(\'\')"]').addClass('ring-2 ring-red-500');
+    }
+    
+    if (!tagId || tagId === '') {
+        // Mostrar todos los contactos
+        location.reload();
+        return;
+    }
+    
+    // Filtrar por tag
+    $.get(`/contacts/by-tag/${tagId}`, function(contacts) {
+        let html = '';
+        
+        if (contacts.length === 0) {
+            html = '<div class="text-center text-gray-400 py-8">No hay contactos con esta etiqueta</div>';
+        } else {
+            contacts.forEach(contact => {
+                html += `
+                    <div onclick="loadChat(${contact.id}, '${escapeHtml(contact.name)}', ${contact.is_intervened})"
+                         class="p-4 border-b hover:bg-gray-50 cursor-pointer transition flex justify-between items-center contact-card">
+                        <div>
+                            <p class="font-bold text-gray-800">${escapeHtml(contact.name)}</p>
+                            <p class="text-xs text-gray-500">${escapeHtml(contact.whatsapp_id)}</p>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${contact.is_intervened ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
+                            ${contact.is_intervened ? 'MANUAL' : 'AUTO'}
+                        </span>
+                    </div>
+                `;
+            });
+        }
+        
+        $('#contact-list').html(html);
+    });
+}
+
+
 
 // ========== FUNCIONES GLOBALES (para onclick en HTML) ==========
 window.loadChat = loadChat;

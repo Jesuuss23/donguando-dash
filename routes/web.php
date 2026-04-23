@@ -216,3 +216,28 @@ Route::post('/api/sync-n8n', function (Request $request) {
         'data' => $response->json()
     ]);
 });
+
+// Buscar contactos por nombre o número
+Route::get('/contacts/search', function (Request $request) {
+    $query = $request->get('q');
+    
+    if (empty($query)) {
+        return Contact::with('messages')->latest()->get();
+    }
+    
+    return Contact::where('name', 'LIKE', "%{$query}%")
+        ->orWhere('whatsapp_id', 'LIKE', "%{$query}%")
+        ->with('messages')
+        ->latest()
+        ->get();
+});
+
+// Obtener todas las etiquetas (para los filtros)
+Route::get('/tags/all', function () {
+    return Tag::orderBy('name', 'asc')->get();
+});
+// Filtrar contactos por etiqueta
+Route::get('/contacts/by-tag/{tagId}', function ($tagId) {
+    $tag = Tag::with('contacts.messages')->findOrFail($tagId);
+    return $tag->contacts()->with('messages')->latest()->get();
+});

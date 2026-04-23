@@ -28,7 +28,21 @@
                 Inventario
             </button>
         </div>
-        
+        <!-- Buscador de contactos -->
+<div class="p-3 border-b bg-white">
+    <input type="text" id="search-contacts" 
+           placeholder="🔍 Buscar por nombre o número..." 
+           class="w-full text-sm border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-500">
+</div>
+<!-- Filtros de etiquetas -->
+<div id="tag-filters-container" class="p-3 border-b bg-gray-50 hidden">
+    <p class="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">📌 FILTRAR POR ETIQUETA</p>
+    <div id="tag-filters-list" class="flex flex-wrap gap-1">
+        <button onclick="filterByTag('')" class="text-[9px] px-2 py-1 rounded-full bg-gray-200 hover:bg-gray-300 transition-all">
+            Todos
+        </button>
+    </div>
+</div>
         <div id="contact-list" class="flex-1 overflow-y-auto">
             @foreach($contacts as $contact)
                 <div onclick="loadChat({{ $contact->id }}, '{{ $contact->name }}', {{ $contact->is_intervened ? 'true' : 'false' }})"
