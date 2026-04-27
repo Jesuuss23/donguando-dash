@@ -184,37 +184,49 @@
     </script>
     <script src="{{ asset('chat.js') }}"></script>
 
-    <!-- Modal Inventario -->
-    <div id="modal-inventory" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
-        <div class="bg-white w-full max-w-4xl h-[80vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-            
-            <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
-                <h2 class="text-xl font-black text-gray-800 uppercase">📦 Inventario Don Guando</h2>
-                <button onclick="closeInventory()" class="text-gray-400 hover:text-red-500 text-3xl font-bold">&times;</button>
-            </div>
+<!-- Modal Inventario -->
+<div id="modal-inventory" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-4xl h-[80vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        
+        <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
+            <h2 class="text-xl font-black text-gray-800 uppercase">📦 Inventario Don Guando</h2>
+            <button onclick="closeInventory()" class="text-gray-400 hover:text-red-500 text-3xl font-bold">&times;</button>
+        </div>
 
-            <div class="flex-1 overflow-y-auto p-6">
-                <div class="flex justify-between mb-4">
-                    <input type="text" id="inventory-search" placeholder="Buscar producto..." class="border rounded-lg px-4 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-red-500">
-                    <button onclick="openProductForm()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold">+ Nuevo</button>
+        <div class="flex-1 overflow-y-auto p-6">
+            <div class="flex justify-between mb-4">
+                <input type="text" id="inventory-search" placeholder="Buscar producto..." 
+                       class="border rounded-lg px-4 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-red-500">
+                <div class="flex gap-2">
+                    <a href="/import-products" 
+                       class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors">
+                        📥 Importar
+                    </a>
+                    <button onclick="openProductForm()" 
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition-colors">
+                        + Nuevo
+                    </button>
                 </div>
-
-                <table class="min-w-full bg-white border">
-                    <thead class="bg-gray-100 text-[10px] uppercase font-bold text-gray-500">
-                        <tr>
-                            <th class="px-4 py-2 text-left">Producto</th>
-                            <th class="px-4 py-2 text-left">Precio</th>
-                            <th class="px-4 py-2 text-left">Stock</th>
-                            <th class="px-4 py-2 text-center">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inventory-table-body">
-                        <!-- Filas de inventario se insertan aquí -->
-                    </tbody>
-                </table>
             </div>
+
+<table class="min-w-full bg-white border">
+    <thead class="bg-gray-100 text-[10px] uppercase font-bold text-gray-500">
+        <tr>
+            <th class="px-4 py-2 text-left">Producto</th>
+            <th class="px-4 py-2 text-left">Precio</th>
+            <th class="px-4 py-2 text-left">Stock</th>
+            <th class="px-4 py-2 text-left">Beneficio/Uso</th>
+            <th class="px-4 py-2 text-left">Psicología de Venta</th>
+            <th class="px-4 py-2 text-center">Acción</th>
+        </tr>
+    </thead>
+    <tbody id="inventory-table-body">
+        <!-- Filas de inventario se insertan aquí -->
+    </tbody>
+</table>
         </div>
     </div>
+</div>
 
     <!-- Modal Formulario Producto -->
     <div id="modal-product-form" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
@@ -245,6 +257,16 @@
                         <option value="paquete">Paquete</option>
                     </select>
                 </div>
+                <div>
+    <label class="block text-xs font-bold text-gray-500 mb-1">BENEFICIO/USO</label>
+    <textarea id="p-beneficio" rows="2" class="w-full border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500" 
+              placeholder="Ej: Ideal para asados, alto en proteínas..."></textarea>
+</div>
+<div>
+    <label class="block text-xs font-bold text-gray-500 mb-1">PSICOLOGÍA DE VENTA</label>
+    <textarea id="p-psicologia" rows="2" class="w-full border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500" 
+              placeholder="Ej: Precio irresistible para ocasiones especiales..."></textarea>
+</div>
                 
                 <div class="flex gap-2 pt-4">
                     <button type="button" onclick="closeProductForm()" class="flex-1 px-4 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>

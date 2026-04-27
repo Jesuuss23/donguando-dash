@@ -249,19 +249,47 @@ function loadInventoryData() {
         let tbody = $('#inventory-table-body');
         tbody.empty();
         
+        if (products.length === 0) {
+            tbody.append('<tr><td colspan="6" class="text-center text-gray-400 py-8">No hay productos registrados</td></tr>');
+            return;
+        }
+        
         products.forEach(p => {
+            // Formatear precio
+            const precioFormateado = `S/ ${parseFloat(p.price).toFixed(2)}`;
+            
+            // Stock con colores
+            let stockClass = '';
+            let stockText = p.stock;
+            if (p.stock <= 0) {
+                stockClass = 'text-red-600 font-bold';
+                stockText = 'AGOTADO';
+            } else if (p.stock <= 5) {
+                stockClass = 'text-orange-600 font-bold';
+            } else {
+                stockClass = 'text-green-600';
+            }
+            
+            // Beneficio y Psicología (con valor por defecto)
+            const beneficio = p.beneficio && p.beneficio !== '' ? p.beneficio : '—';
+            const psicologia = p.psicologia_venta && p.psicologia_venta !== '' ? p.psicologia_venta : '—';
+            
             tbody.append(`
                 <tr class="border-b hover:bg-gray-50">
-                    <td class="px-4 py-3 font-bold text-gray-700">${p.name}</td>
-                    <td class="px-4 py-3 text-blue-600 font-black">S/ ${p.price}</td>
-                    <td class="px-4 py-3">${p.stock} ${p.unit}</td>
+                    <td class="px-4 py-3 font-bold text-gray-800">${escapeHtml(p.name)}</td>
+                    <td class="px-4 py-3 text-blue-600 font-black">${precioFormateado}</td>
+                    <td class="px-4 py-3 ${stockClass} font-medium">${stockText}</td>
+                    <td class="px-4 py-3 text-xs text-gray-600">${escapeHtml(beneficio)}</td>
+                    <td class="px-4 py-3 text-xs text-gray-600">${escapeHtml(psicologia)}</td>
                     <td class="px-4 py-3 text-center">
-                        <button onclick="editProduct(${p.id})" class="text-[10px] bg-blue-100 text-blue-600 px-2 py-1 rounded">Editar</button>
-                        <button onclick="deleteProduct(${p.id}, '${p.name}')" class="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded">Eliminar</button>
+                        <button onclick="editProduct(${p.id})" class="text-[10px] bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200">Editar</button>
+                        <button onclick="deleteProduct(${p.id}, '${escapeHtml(p.name)}')" class="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">Eliminar</button>
                     </td>
                 </tr>
             `);
         });
+    }).fail(function() {
+        $('#inventory-table-body').html('<tr><td colspan="6" class="text-center text-red-500 py-8">Error al cargar productos</td></tr>');
     });
 }
 
@@ -294,6 +322,8 @@ function editProduct(id) {
         $('#p-price').val(p.price);
         $('#p-stock').val(p.stock);
         $('#p-unit').val(p.unit);
+        $('#p-beneficio').val(p.beneficio || '');
+        $('#p-psicologia').val(p.psicologia_venta || '');
         $('#modal-product-form').removeClass('hidden');
     });
 }
@@ -533,6 +563,8 @@ $('#search-contacts').on('input', function() {
             price: $('#p-price').val(),
             stock: $('#p-stock').val(),
             unit: $('#p-unit').val(),
+            beneficio: $('#p-beneficio').val(),
+            psicologia_venta: $('#p-psicologia').val(),
             _token: $('meta[name="csrf-token"]').attr('content')
         };
         

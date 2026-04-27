@@ -9,7 +9,11 @@ use App\Models\QuickResponse;
 use App\Models\Message;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use App\Http\Controllers\ProductImportController;
 
+// Importar productos
+Route::get('/import-products', [ProductImportController::class, 'showForm']);
+Route::post('/import-products', [ProductImportController::class, 'import'])->name('import.products');
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -20,7 +24,7 @@ use Illuminate\Support\Facades\Http;
 Route::get('/dashboard', function () {
     $contacts = Contact::with('messages')->latest()->get();
     return view('chat', compact('contacts'));
-});
+})->name('dashboard');
 
 Route::get('/', function () {
     return redirect('/dashboard');
@@ -200,7 +204,7 @@ Route::delete('/quick-responses/delete/{id}', function ($id) {
 */
 
 Route::post('/api/sync-n8n', function (Request $request) {
-    $n8nUrl = 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook-test/sync-contact-whatsapp';
+    $n8nUrl = 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook/sync-contact-whatsapp';
     
     $data = [
         'name' => $request->input('name'),
@@ -275,3 +279,49 @@ Route::post('/chat/toggle-pin/{contactId}', function ($contactId) {
     $contact->save();
     return response()->json(['is_pinned' => $contact->is_pinned]);
 });
+
+// API para que la IA obtenga el inventario completo (formato amigable)
+Route::get('/api/inventory-for-ia', function () {
+    $products = Product::all();
+    
+    $inventario_texto = "";
+    foreach ($products as $product) {
+        $inventario_texto .= "- {$product->name}: S/ {$product->price} | ";
+        $inventario_texto .= "Stock: {$product->stock} {$product->unit} | ";
+        $inventario_texto .= "Ideal para: {$product->beneficio} | ";
+        $inventario_texto .= "Tip: {$product->psicologia_venta}\n";
+    }
+    
+    return response()->json([
+        'inventario' => $inventario_texto,
+        'productos' => $products
+    ]);
+});
+
+// API para que la IA registre pedidos detectados
+Route::post('/api/order-from-ia', function (Request $request) {
+    $contact = Contact::firstOrCreate(
+        ['whatsapp_id' => $request->whatsapp_id],
+        ['name' => $request->cliente ?? 'Cliente IA']
+    );
+    
+    // Actualizar la ficha de pedido del contacto
+    $contact->update([
+        'producto' => $request->producto,
+        'cantidad' => $request->cantidad,
+        'direccion' => $request->direccion
+    ]);
+    
+    // Incrementar contador IA
+    if ($request->count_ia) {
+        $contact->incrementIaCount();
+    }
+    
+    return response()->json(['status' => 'success']);
+});
+
+
+
+// Importar productos
+Route::get('/import-products', [ProductImportController::class, 'showForm']);
+Route::post('/import-products', [ProductImportController::class, 'import'])->name('import.products');

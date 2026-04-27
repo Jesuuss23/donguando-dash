@@ -218,3 +218,22 @@ input:focus, textarea:focus, select:focus {
 .contact-card.pinned .contact-name {
     color: #1e40af;
 }
+
+/* Líneas truncadas */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Mejora de scroll en la tabla */
+.overflow-x-auto {
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+/* Filas de tabla */
+tbody tr:hover {
+    background-color: #f8fafc;
+}
