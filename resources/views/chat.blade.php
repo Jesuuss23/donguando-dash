@@ -35,6 +35,10 @@
            placeholder="🔍 Buscar por nombre o número..." 
            class="w-full text-sm border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-500">
 </div>
+<!-- Botón de exportación en el menú de 3 puntitos -->
+<button onclick="exportContacts()" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm hover:bg-gray-100 transition-colors">
+    <span>📊</span> <span>Exportar contactos</span>
+</button>
 <!-- Filtros de etiquetas -->
 <div id="tag-filters-container" class="p-3 border-b bg-gray-50 hidden">
     <p class="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">📌 FILTRAR POR ETIQUETA</p>
@@ -81,9 +85,11 @@
                         <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </button>
+                
             </div>
 
             <div class="flex items-center space-x-4">
+                
                 <button id="btn-show-order" onclick="toggleOrderPanel()"
                     class="hidden p-2 text-yellow-600 hover:bg-yellow-100 rounded-full transition-colors">
                     📋
@@ -97,6 +103,7 @@
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                         </svg>
+                        
                     </button>
 
                     <div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-xl z-50 overflow-hidden">
@@ -123,7 +130,49 @@
                 <p class="text-sm">Selecciona un chat para ver los mensajes</p>
             </div>
         </div>
+            <!-- ========== NUEVO: ÁREA DE RESPUESTAS RÁPIDAS (como WhatsApp) ========== -->
+    <div id="quick-reply-bar" class="border-t bg-white shadow-lg">
+        <!-- Botón para abrir/cerrar respuestas rápidas -->
+        <div class="flex items-center gap-2 px-3 py-2">
+            <button onclick="toggleQuickReplies()" class="text-gray-500 hover:text-blue-500 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <div class="flex-1">
+                <input type="text" id="message-input" placeholder="Escribe un mensaje..." 
+                       class="w-full border-0 focus:ring-0 text-sm py-2 outline-none">
+            </div>
+            <button onclick="sendMessage()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded-full text-sm font-bold transition-colors">
+                Enviar
+            </button>
+        </div>
+        
+        <!-- Panel de respuestas rápidas (oculto por defecto) -->
+        <div id="quick-replies-panel" class="hidden border-t bg-gray-50 max-h-64 overflow-y-auto">
+            <!-- Comandos rápidos (como WhatsApp Business) -->
+            <div class="p-2 border-b bg-white">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📱 Comandos rápidos</span>
+                    <span class="text-[8px] text-gray-300">Escribe / en el chat</span>
+                </div>
+                <div id="quick-commands-list" class="flex flex-wrap gap-2">
+                    <span class="text-[9px] text-gray-400">Cargando comandos...</span>
+                </div>
+            </div>
+            
+            <!-- Respuestas rápidas por categoría -->
+            <div id="quick-replies-categories" class="divide-y">
+                <div class="text-center text-gray-400 text-xs py-4">Cargando respuestas rápidas...</div>
+            </div>
+        </div>
+        
+        <!-- Sugerencias de comandos (aparece al escribir /) -->
+        <div id="command-suggestions" class="hidden absolute bottom-full left-0 right-0 bg-white border rounded-t-lg shadow-lg max-h-48 overflow-y-auto z-50"></div>
     </div>
+</div>
+    </div>
+    
 
     <!-- TERCERA COLUMNA: Panel de Ventas -->
     <div class="w-1/4 flex flex-col bg-white p-4">
@@ -307,6 +356,143 @@
                 <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow-lg hover:bg-blue-700 transition-all">Guardar Plantilla</button>
             </div>
         </form>
+    </div>
+</div>
+
+
+<!-- Modal Gestión de Tags -->
+<div id="modal-tags-manager" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div class="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white flex justify-between items-center">
+            <h3 class="text-lg font-black uppercase">🏷️ Gestión de Etiquetas</h3>
+            <button onclick="closeTagsManager()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+        </div>
+        
+        <div class="p-4 border-b">
+            <div class="flex gap-2">
+                <input type="text" id="new-tag-name" placeholder="Nueva etiqueta..." 
+                       class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500">
+                <input type="color" id="new-tag-color" value="#6b21f5" 
+                       class="w-12 h-10 rounded border cursor-pointer">
+                <button onclick="createTag()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold">
+                    + Agregar
+                </button>
+            </div>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4 max-h-96">
+            <div id="tags-list" class="flex flex-wrap gap-2">
+                <!-- Lista de tags se carga aquí -->
+            </div>
+        </div>
+        
+        <div class="p-4 border-t bg-gray-50 flex justify-end">
+            <button onclick="closeTagsManager()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Configuración de Respuestas Rápidas -->
+<div id="modal-quick-config" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white flex justify-between items-center rounded-t-2xl">
+            <h3 class="text-lg font-black uppercase">⚙️ Configurar Respuestas Rápidas</h3>
+            <button onclick="closeConfigQuickMessages()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="flex border-b">
+            <button onclick="showTab('categories')" id="tab-categories" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors border-b-2 border-blue-500 text-blue-600">
+                📁 Categorías
+            </button>
+            <button onclick="showTab('responses')" id="tab-responses" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors text-gray-500">
+                💬 Respuestas
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4">
+            <!-- Panel de Categorías -->
+            <div id="categories-panel">
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="new-category-name" placeholder="Nueva categoría (ej: Carnes, Pollos, Cerdo)" 
+                           class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="new-category-icon" placeholder="Icono" value="🥩" 
+                           class="w-20 border rounded-lg px-3 py-2 text-sm text-center">
+                    <button onclick="createCategory()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition-colors">
+                        + Agregar
+                    </button>
+                </div>
+                <div id="categories-list" class="space-y-2">
+                    <!-- Lista de categorías -->
+                </div>
+            </div>
+            
+            <!-- Panel de Respuestas -->
+            <div id="responses-panel" class="hidden">
+                <div class="flex gap-2 mb-4">
+                    <select id="response-category" class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                        <option value="">Todas las categorías</option>
+                    </select>
+                    <button onclick="openResponseForm()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition-colors">
+                        + Nueva Respuesta
+                    </button>
+                </div>
+                <div id="responses-list" class="space-y-2 max-h-96 overflow-y-auto">
+                    <!-- Lista de respuestas -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t bg-gray-50 flex justify-end">
+            <button onclick="closeConfigQuickMessages()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+<!-- Modal Configuración de Respuestas Rápidas (ÚNICO) -->
+<div id="modal-quick-config" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white flex justify-between items-center rounded-t-2xl">
+            <h3 class="text-lg font-black uppercase">⚙️ Configurar Respuestas Rápidas</h3>
+            <button onclick="closeConfigQuickMessages()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+        </div>
+        
+        <div class="flex border-b">
+            <button onclick="showTab('categories')" id="tab-categories" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors border-b-2 border-blue-500 text-blue-600">
+                📁 Categorías
+            </button>
+            <button onclick="showTab('responses')" id="tab-responses" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors text-gray-500">
+                💬 Respuestas
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4">
+            <!-- Panel de Categorías -->
+            <div id="categories-panel">
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="new-category-name" placeholder="Nueva categoría (ej: Carnes)" class="flex-1 border rounded-lg px-3 py-2 text-sm">
+                    <input type="text" id="new-category-icon" placeholder="Icono" value="🥩" class="w-20 border rounded-lg px-3 py-2 text-sm text-center">
+                    <button onclick="createCategory()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold">+</button>
+                </div>
+                <div id="categories-list" class="space-y-2"></div>
+            </div>
+            
+            <!-- Panel de Respuestas -->
+            <div id="responses-panel" class="hidden">
+                <div class="flex gap-2 mb-4">
+                    <select id="response-category" class="border rounded-lg px-3 py-2 text-sm flex-1">
+                        <option value="">Todas las categorías</option>
+                    </select>
+                    <button onclick="openResponseForm()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold">+ Nueva</button>
+                </div>
+                <div id="responses-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t bg-gray-50 flex justify-end">
+            <button onclick="closeConfigQuickMessages()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cerrar</button>
+        </div>
     </div>
 </div>
 </body>

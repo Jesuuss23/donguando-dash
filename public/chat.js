@@ -203,25 +203,249 @@ function renderTags(contactId) {
     }).fail(xhr => console.error("Error al obtener etiquetas:", xhr.responseText));
 }
 
+// ========== FUNCIONES DE TAGS MEJORADAS ==========
+
 function showTagModal() {
     if (!currentContactId) {
         alert("Primero selecciona un contacto");
         return;
     }
     
-    let tagName = prompt("Nombre de la etiqueta:");
-    if (!tagName) return;
+    // Cargar tags existentes primero
+    $.get('/admin/tags', function(existingTags) {
+        let tagOptions = '<option value="">-- Seleccionar o crear nuevo --</option>';
+        tagOptions += '<option value="__new__">✨ Crear nueva etiqueta</option>';
+        tagOptions += '<hr>';
+        
+        existingTags.forEach(tag => {
+            tagOptions += `<option value="${tag.id}" style="color: ${tag.color}">🏷️ ${tag.name}</option>`;
+        });
+        
+        // Crear un selector modal personalizado
+        const tempDiv = $(`
+            <div id="tag-selector-modal" class="fixed inset-0 z-[90] flex items-center justify-center bg-black bg-opacity-50">
+                <div class="bg-white rounded-xl shadow-xl w-96 p-4">
+                    <h3 class="font-bold text-lg mb-3">Agregar etiqueta a ${escapeHtml(currentContactName)}</h3>
+                    <select id="tag-select" class="w-full border rounded-lg px-3 py-2 mb-3">
+                        ${tagOptions}
+                    </select>
+                    <div id="new-tag-input" class="hidden">
+                        <input type="text" id="custom-tag-name" placeholder="Nombre de la nueva etiqueta..." 
+                               class="w-full border rounded-lg px-3 py-2 mb-2">
+                        <div class="flex gap-2 mb-3">
+                            <input type="color" id="custom-tag-color" value="#' . str_pad(dechex(mt_rand(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT) . '" 
+                                   class="w-12 h-10 rounded border">
+                            <span class="text-xs text-gray-500 self-center">Elige un color</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="closeTagSelector()" class="flex-1 px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                        <button onclick="confirmAddTag()" class="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg font-bold">Agregar</button>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <button onclick="openTagsManager()" class="text-xs text-blue-500 hover:underline">⚙️ Administrar todas las etiquetas</button>
+                    </div>
+                </div>
+            </div>
+        `);
+        
+        $('body').append(tempDiv);
+        
+        // Evento para mostrar/ocultar input de nueva etiqueta
+        $('#tag-select').on('change', function() {
+            if ($(this).val() === '__new__') {
+                $('#new-tag-input').removeClass('hidden');
+            } else {
+                $('#new-tag-input').addClass('hidden');
+            }
+        });
+        
+        // Guardar referencia
+        window.selectedTagId = null;
+    });
+}
+
+function closeTagSelector() {
+    $('#tag-selector-modal').remove();
+}
+
+function confirmAddTag() {
+    const selectedValue = $('#tag-select').val();
     
+    if (selectedValue === '__new__') {
+        // Crear nueva etiqueta
+        const newTagName = $('#custom-tag-name').val().trim();
+        if (!newTagName) {
+            alert('Ingresa un nombre para la etiqueta');
+            return;
+        }
+        
+        $.ajax({
+            url: '/admin/tags',
+            method: 'POST',
+            data: {
+                name: newTagName,
+                color: $('#custom-tag-color').val(),
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(newTag) {
+                // Asignar la nueva etiqueta al contacto
+                assignTagToContact(newTag.id);
+            },
+            error: function() {
+                alert('Error al crear la etiqueta');
+            }
+        });
+    } else if (selectedValue && selectedValue !== '') {
+        // Usar etiqueta existente
+        assignTagToContact(selectedValue);
+    } else {
+        alert('Selecciona una etiqueta');
+    }
+}
+
+function assignTagToContact(tagId) {
     $.ajax({
         url: `/contacts/${currentContactId}/tags`,
         method: 'POST',
-        data: { name: tagName, _token: $('meta[name="csrf-token"]').attr('content') },
+        data: {
+            name: '', // Esto es para compatibilidad, el backend usará el tagId
+            tag_id: tagId,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
         success: function() {
             renderTags(currentContactId);
+            loadTagFilters();
+            closeTagSelector();
             showToast('✅ Etiqueta agregada', 'success');
         },
         error: function() {
-            alert("Error al guardar la etiqueta");
+            alert('Error al asignar la etiqueta');
+        }
+    });
+}
+
+function openTagsManager() {
+    closeTagSelector();
+    $('#modal-tags-manager').removeClass('hidden');
+    loadTagsManager();
+}
+
+function closeTagsManager() {
+    $('#modal-tags-manager').addClass('hidden');
+}
+
+function loadTagsManager() {
+    $.get('/admin/tags', function(tags) {
+        let container = $('#tags-list');
+        container.empty();
+        
+        if (tags.length === 0) {
+            container.html('<div class="text-center text-gray-400 py-8">No hay etiquetas creadas</div>');
+            return;
+        }
+        
+        tags.forEach(tag => {
+            container.append(`
+                <div class="flex items-center justify-between bg-gray-50 rounded-lg p-2 border border-gray-200 w-full">
+                    <div class="flex items-center gap-2 flex-1">
+                        <span class="w-6 h-6 rounded-full border shadow-sm" style="background-color: ${tag.color}"></span>
+                        <input type="text" class="tag-name-input font-bold text-gray-800 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-purple-500 rounded px-2 py-1" 
+                               value="${escapeHtml(tag.name)}" data-original="${escapeHtml(tag.name)}" data-id="${tag.id}">
+                        <input type="color" class="tag-color-input w-8 h-8 rounded border cursor-pointer" 
+                               value="${tag.color}" data-id="${tag.id}">
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="saveTagEdit(${tag.id})" class="text-green-600 hover:text-green-800 px-2 py-1 rounded text-xs font-bold">💾 Guardar</button>
+                        <button onclick="deleteTagFromManager(${tag.id}, '${escapeHtml(tag.name)}')" class="text-red-600 hover:text-red-800 px-2 py-1 rounded text-xs font-bold">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `);
+        });
+    });
+}
+
+function saveTagEdit(tagId) {
+    const $row = $(`input[data-id="${tagId}"]`).first();
+    const $nameInput = $row.closest('.flex').find('.tag-name-input');
+    const $colorInput = $row.closest('.flex').find('.tag-color-input');
+    
+    const newName = $nameInput.val().trim();
+    const newColor = $colorInput.val();
+    
+    if (!newName) {
+        alert('El nombre no puede estar vacío');
+        return;
+    }
+    
+    $.ajax({
+        url: `/admin/tags/${tagId}`,
+        method: 'PUT',
+        data: {
+            name: newName,
+            color: newColor,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function() {
+            loadTagsManager();
+            loadTagFilters();
+            if (currentContactId) {
+                renderTags(currentContactId);
+            }
+            showToast('✅ Etiqueta actualizada', 'success');
+        },
+        error: function() {
+            alert('Error al guardar');
+        }
+    });
+}
+
+function deleteTagFromManager(tagId, tagName) {
+    if (!confirm(`¿Eliminar la etiqueta "${tagName}"? Se quitará de todos los contactos.`)) return;
+    
+    $.ajax({
+        url: `/admin/tags/${tagId}`,
+        method: 'DELETE',
+        data: { _token: $('meta[name="csrf-token"]').attr('content') },
+        success: function() {
+            loadTagsManager();
+            loadTagFilters();
+            if (currentContactId) {
+                renderTags(currentContactId);
+            }
+            showToast('🏷️ Etiqueta eliminada', 'success');
+        },
+        error: function() {
+            alert('Error al eliminar');
+        }
+    });
+}
+
+function createTag() {
+    const tagName = $('#new-tag-name').val().trim();
+    const tagColor = $('#new-tag-color').val();
+    
+    if (!tagName) {
+        alert('Ingresa un nombre para la etiqueta');
+        return;
+    }
+    
+    $.ajax({
+        url: '/admin/tags',
+        method: 'POST',
+        data: {
+            name: tagName,
+            color: tagColor,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function() {
+            $('#new-tag-name').val('');
+            loadTagsManager();
+            loadTagFilters();
+            showToast('✅ Etiqueta creada', 'success');
+        },
+        error: function() {
+            alert('Error al crear la etiqueta');
         }
     });
 }
@@ -826,7 +1050,23 @@ function togglePinChatFromMenu() {
         showToast('Error al anclar/desanclar', 'error');
     });
 }
+
+// ========== EXPORTAR CONTACTOS ==========
+function exportContacts() {
+    window.location.href = '/export/contacts';
+}
+
+function exportFilteredContacts() {
+    const filters = {
+        ia_status: currentTagFilter ? 'filtered' : '',
+        tag_id: currentTagFilter || ''
+    };
+    window.location.href = '/export/contacts/filtered?' + $.param(filters);
+}
+
 // ========== FUNCIONES GLOBALES (para onclick en HTML) ==========
+window.exportContacts = exportContacts;
+window.exportFilteredContacts = exportFilteredContacts;
 window.togglePinChatFromMenu = togglePinChatFromMenu;
 window.togglePinChat = togglePinChat;
 window.loadChat = loadChat;

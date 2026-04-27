@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\ProductImportController;
 
-// Importar productos
-Route::get('/import-products', [ProductImportController::class, 'showForm']);
-Route::post('/import-products', [ProductImportController::class, 'import'])->name('import.products');
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -29,6 +26,10 @@ Route::get('/dashboard', function () {
 Route::get('/', function () {
     return redirect('/dashboard');
 });
+
+// Importar productos
+Route::get('/import-products', [ProductImportController::class, 'showForm']);
+Route::post('/import-products', [ProductImportController::class, 'import'])->name('import.products');
 
 /*
 |--------------------------------------------------------------------------
@@ -73,14 +74,12 @@ Route::post('/chat/clear-order/{contactId}', function ($contactId) {
         return response()->json(['error' => 'ID no válido'], 400);
     }
 
-    $updated = DB::table('contacts')
-        ->where('id', $contactId)
-        ->update([
-            'producto' => null,
-            'cantidad' => null,
-            'direccion' => null,
-            'updated_at' => now()
-        ]);
+    $updated = DB::table('contacts')->where('id', $contactId)->update([
+        'producto' => null,
+        'cantidad' => null,
+        'direccion' => null,
+        'updated_at' => now()
+    ]);
 
     if ($updated) {
         return response()->json(['status' => 'success', 'message' => 'Ficha borrada']);
@@ -95,9 +94,65 @@ Route::post('/chat/mark-as-read/{contactId}', function ($contactId) {
     return response()->json(['status' => 'success']);
 });
 
+Route::post('/chat/toggle-pin/{contactId}', function ($contactId) {
+    $contact = Contact::findOrFail($contactId);
+    $contact->is_pinned = !$contact->is_pinned;
+    $contact->save();
+    return response()->json(['is_pinned' => $contact->is_pinned]);
+});
+
+Route::get('/chat/ia-stats/{contactId}', function ($contactId) {
+    $contact = Contact::findOrFail($contactId);
+    return response()->json([
+        'count' => $contact->ia_messages_count ?? 0,
+        'ia_active' => $contact->is_intervened == 0
+    ]);
+});
+
 /*
 |--------------------------------------------------------------------------
-| Rutas de Etiquetas
+| Rutas de Contactos
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/contacts/ordered', function () {
+    $contacts = Contact::with(['messages' => function($q) {
+        $q->latest()->limit(1);
+    }])->get();
+    
+    $contacts = $contacts->sortByDesc(function($contact) {
+        $lastMessage = $contact->messages->first();
+        return [
+            $contact->is_pinned ? 1 : 0,
+            $lastMessage ? $lastMessage->created_at : $contact->created_at
+        ];
+    });
+    
+    return response()->json($contacts->values());
+});
+
+Route::get('/contacts/search', function (Request $request) {
+    $query = $request->get('q');
+    
+    if (empty($query)) {
+        return Contact::with('messages')->latest()->get();
+    }
+    
+    return Contact::where('name', 'LIKE', "%{$query}%")
+        ->orWhere('whatsapp_id', 'LIKE', "%{$query}%")
+        ->with('messages')
+        ->latest()
+        ->get();
+});
+
+Route::get('/contacts/by-tag/{tagId}', function ($tagId) {
+    $tag = Tag::with('contacts.messages')->findOrFail($tagId);
+    return $tag->contacts()->with('messages')->latest()->get();
+});
+
+/*
+|--------------------------------------------------------------------------
+| Rutas de Etiquetas (Tags)
 |--------------------------------------------------------------------------
 */
 
@@ -109,11 +164,15 @@ Route::get('/contacts/{id}/tags', function ($id) {
 Route::post('/contacts/{id}/tags', function (Request $request, $id) {
     $contact = Contact::findOrFail($id);
     
-    $tag = Tag::firstOrCreate(
-        ['name' => strtoupper($request->name)],
-        ['color' => '#' . str_pad(dechex(mt_rand(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT)]
-    );
-
+    if ($request->tag_id) {
+        $tag = Tag::findOrFail($request->tag_id);
+    } else {
+        $tag = Tag::firstOrCreate(
+            ['name' => strtoupper($request->name)],
+            ['color' => '#' . str_pad(dechex(mt_rand(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT)]
+        );
+    }
+    
     $contact->tags()->syncWithoutDetaching([$tag->id]);
     return response()->json($tag);
 });
@@ -121,6 +180,39 @@ Route::post('/contacts/{id}/tags', function (Request $request, $id) {
 Route::delete('/contacts/{contactId}/tags/{tagId}', function ($contactId, $tagId) {
     $contact = Contact::findOrFail($contactId);
     $contact->tags()->detach($tagId);
+    return response()->json(['status' => 'success']);
+});
+
+// Gestión de tags (admin)
+Route::get('/tags/all', function () {
+    return Tag::orderBy('name', 'asc')->get();
+});
+
+Route::get('/admin/tags', function () {
+    return Tag::orderBy('name', 'asc')->get();
+});
+
+Route::post('/admin/tags', function (Request $request) {
+    $tag = Tag::create([
+        'name' => strtoupper(trim($request->name)),
+        'color' => $request->color ?? '#' . str_pad(dechex(mt_rand(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT)
+    ]);
+    return response()->json($tag);
+});
+
+Route::put('/admin/tags/{id}', function (Request $request, $id) {
+    $tag = Tag::findOrFail($id);
+    $tag->update([
+        'name' => strtoupper(trim($request->name)),
+        'color' => $request->color
+    ]);
+    return response()->json($tag);
+});
+
+Route::delete('/admin/tags/{id}', function ($id) {
+    $tag = Tag::findOrFail($id);
+    $tag->contacts()->detach();
+    $tag->delete();
     return response()->json(['status' => 'success']);
 });
 
@@ -206,13 +298,11 @@ Route::delete('/quick-responses/delete/{id}', function ($id) {
 Route::post('/api/sync-n8n', function (Request $request) {
     $n8nUrl = 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook/sync-contact-whatsapp';
     
-    $data = [
+    $response = Http::post($n8nUrl, [
         'name' => $request->input('name'),
         'phone' => $request->input('phone'),
         'body' => $request->input('body'),
-    ];
-    
-    $response = Http::post($n8nUrl, $data);
+    ]);
     
     return response()->json([
         'success' => $response->successful(),
@@ -221,107 +311,8 @@ Route::post('/api/sync-n8n', function (Request $request) {
     ]);
 });
 
-// Buscar contactos por nombre o número
-Route::get('/contacts/search', function (Request $request) {
-    $query = $request->get('q');
-    
-    if (empty($query)) {
-        return Contact::with('messages')->latest()->get();
-    }
-    
-    return Contact::where('name', 'LIKE', "%{$query}%")
-        ->orWhere('whatsapp_id', 'LIKE', "%{$query}%")
-        ->with('messages')
-        ->latest()
-        ->get();
-});
+use App\Http\Controllers\ExportController;
 
-// Obtener todas las etiquetas (para los filtros)
-Route::get('/tags/all', function () {
-    return Tag::orderBy('name', 'asc')->get();
-});
-// Filtrar contactos por etiqueta
-Route::get('/contacts/by-tag/{tagId}', function ($tagId) {
-    $tag = Tag::with('contacts.messages')->findOrFail($tagId);
-    return $tag->contacts()->with('messages')->latest()->get();
-});
-
-// En web.php, agrega al final
-Route::get('/chat/ia-stats/{contactId}', function ($contactId) {
-    $contact = Contact::findOrFail($contactId);
-    return response()->json([
-        'count' => $contact->ia_messages_count ?? 0,
-        'ia_active' => $contact->is_intervened
-    ]);
-});
-
-Route::get('/contacts/ordered', function () {
-    $contacts = Contact::with(['messages' => function($q) {
-        $q->latest()->limit(1);
-    }])->get();
-    
-    // Ordenar: anclados primero, luego por último mensaje
-    $contacts = $contacts->sortByDesc(function($contact) {
-        $lastMessage = $contact->messages->first();
-        return [
-            $contact->is_pinned ? 1 : 0,  // Anclados primero
-            $lastMessage ? $lastMessage->created_at : $contact->created_at
-        ];
-    });
-    
-    return response()->json($contacts->values());
-});
-
-// Anclar/Desanclar chat
-Route::post('/chat/toggle-pin/{contactId}', function ($contactId) {
-    $contact = Contact::findOrFail($contactId);
-    $contact->is_pinned = !$contact->is_pinned;
-    $contact->save();
-    return response()->json(['is_pinned' => $contact->is_pinned]);
-});
-
-// API para que la IA obtenga el inventario completo (formato amigable)
-Route::get('/api/inventory-for-ia', function () {
-    $products = Product::all();
-    
-    $inventario_texto = "";
-    foreach ($products as $product) {
-        $inventario_texto .= "- {$product->name}: S/ {$product->price} | ";
-        $inventario_texto .= "Stock: {$product->stock} {$product->unit} | ";
-        $inventario_texto .= "Ideal para: {$product->beneficio} | ";
-        $inventario_texto .= "Tip: {$product->psicologia_venta}\n";
-    }
-    
-    return response()->json([
-        'inventario' => $inventario_texto,
-        'productos' => $products
-    ]);
-});
-
-// API para que la IA registre pedidos detectados
-Route::post('/api/order-from-ia', function (Request $request) {
-    $contact = Contact::firstOrCreate(
-        ['whatsapp_id' => $request->whatsapp_id],
-        ['name' => $request->cliente ?? 'Cliente IA']
-    );
-    
-    // Actualizar la ficha de pedido del contacto
-    $contact->update([
-        'producto' => $request->producto,
-        'cantidad' => $request->cantidad,
-        'direccion' => $request->direccion
-    ]);
-    
-    // Incrementar contador IA
-    if ($request->count_ia) {
-        $contact->incrementIaCount();
-    }
-    
-    return response()->json(['status' => 'success']);
-});
-
-
-
-// Importar productos
-Route::get('/import-products', [ProductImportController::class, 'showForm']);
-Route::post('/import-products', [ProductImportController::class, 'import'])->name('import.products');
+// Exportar contactos a Excel
+Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');
+Route::get('/export/contacts/filtered', [ExportController::class, 'exportFiltered'])->name('export.filtered');
