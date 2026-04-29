@@ -162,6 +162,8 @@ function loadChat(contactId, name, isIntervened) {
     $('#contact-name-header').text('Chat con ' + name);
     $('#chat-messages').html('<p class="text-center text-gray-500">Cargando...</p>');
     $('#btn-intervene, #btn-menu, #btn-add-tag').removeClass('hidden');
+    // Mostrar botón de configuración de comandos
+$('#btn-cmd-config').removeClass('hidden');
     
     updateButtonUI(isIntervened);
     fetchMessages(contactId);
@@ -736,6 +738,8 @@ function insertIntoChat(text) {
 
 // ========== INICIALIZACIÓN ==========
 $(document).ready(function() {
+    // Inicializar detección de comandos
+setupCommandDetection();
     loadOrderedContacts();
     console.log("🚀 Don Guando Dashboard iniciado");
     loadTagFilters();
@@ -1064,7 +1068,453 @@ function exportFilteredContacts() {
     window.location.href = '/export/contacts/filtered?' + $.param(filters);
 }
 
+// ========== SISTEMA DE COMANDOS (INDEPENDIENTE) ==========
+
+function openCmdConfig() {
+    $('#modal-cmd-config').removeClass('hidden');
+    loadCmdCategories();
+    loadCmdCategorySelect();
+    loadCmdCommands();
+}
+
+function closeCmdConfig() {
+    $('#modal-cmd-config').addClass('hidden');
+}
+
+function showCmdTab(tab) {
+    if (tab === 'categories') {
+        $('#cmd-categories-panel').removeClass('hidden');
+        $('#cmd-commands-panel').addClass('hidden');
+        $('#cmd-tab-categories').addClass('border-b-2 border-green-500 text-green-600').removeClass('text-gray-500');
+        $('#cmd-tab-commands').removeClass('border-b-2 border-green-500 text-green-600').addClass('text-gray-500');
+        loadCmdCategories();
+    } else {
+        $('#cmd-categories-panel').addClass('hidden');
+        $('#cmd-commands-panel').removeClass('hidden');
+        $('#cmd-tab-commands').addClass('border-b-2 border-green-500 text-green-600').removeClass('text-gray-500');
+        $('#cmd-tab-categories').removeClass('border-b-2 border-green-500 text-green-600').addClass('text-gray-500');
+        loadCmdCommands();
+    }
+}
+
+function loadCmdCategories() {
+    $.get('/cmd/categories', function(categories) {
+        console.log('📦 Categorías recibidas:', categories);
+        
+        if (!categories || categories.length === 0) {
+            $('#cmd-categories-list').html('<div class="text-center text-gray-400 py-4">No hay categorías creadas</div>');
+            return;
+        }
+        
+        let html = '';
+        categories.forEach(cat => {
+            const commandsCount = cat.quick_commands ? cat.quick_commands.length : 0;
+            html += `
+                <div class="flex items-center justify-between bg-white border rounded-lg p-3 hover:shadow-md transition-shadow">
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">${cat.icon || '📁'}</span>
+                        <div>
+                            <div class="font-bold text-gray-800">${escapeHtml(cat.name)}</div>
+                            <div class="text-xs text-gray-500">${commandsCount} comando${commandsCount !== 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editCmdCategory(${cat.id}, '${escapeHtml(cat.name)}', '${cat.icon || '📁'}')" 
+                                class="text-blue-500 hover:text-blue-700 px-2 py-1 rounded text-sm transition-colors" title="Editar categoría">
+                            ✏️ Editar
+                        </button>
+                        <button onclick="deleteCmdCategory(${cat.id})" 
+                                class="text-red-500 hover:text-red-700 px-2 py-1 rounded text-sm transition-colors" title="Eliminar categoría">
+                            🗑️ Eliminar
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        $('#cmd-categories-list').html(html);
+    }).fail(function() {
+        $('#cmd-categories-list').html('<div class="text-center text-red-500 py-4">Error al cargar categorías</div>');
+    });
+}
+
+function createCmdCategory() {
+    let name = $('#cmd-new-category-name').val().trim();
+    let icon = $('#cmd-new-category-icon').val().trim();
+    
+    if (!name) {
+        showToast('Ingresa un nombre para la categoría', 'warning');
+        return;
+    }
+    
+    $.ajax({
+        url: '/cmd/categories',
+        method: 'POST',
+        data: {
+            name: name,
+            icon: icon,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function() {
+            $('#cmd-new-category-name').val('');
+            $('#cmd-new-category-icon').val('🥩');
+            showToast('✅ Categoría creada', 'success');
+            loadCmdCategories();
+            loadCmdCategorySelect();
+        },
+        error: function() {
+            showToast('Error al crear la categoría', 'error');
+        }
+    });
+}
+
+function editCmdCategory(id, currentName, currentIcon) {
+    let newName = prompt('✏️ Editar nombre de la categoría:', currentName);
+    if (!newName || newName === currentName) return;
+    
+    let newIcon = prompt('🎨 Editar icono (ej: 🥩, 🐷, 🐔):', currentIcon);
+    if (!newIcon) newIcon = currentIcon;
+    
+    $.ajax({
+        url: `/cmd/categories/${id}`,
+        method: 'PUT',
+        data: {
+            name: newName,
+            icon: newIcon,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function() {
+            showToast('✅ Categoría actualizada', 'success');
+            loadCmdCategories();
+            loadCmdCategorySelect();
+            loadQuickCommandsPanel();
+        },
+        error: function() {
+            showToast('Error al actualizar la categoría', 'error');
+        }
+    });
+}
+
+function deleteCmdCategory(id) {
+    // Obtener el nombre de la categoría primero para mostrarlo en el mensaje
+    $.get(`/cmd/categories/${id}`, function(category) {
+        const commandsCount = category.quick_commands ? category.quick_commands.length : 0;
+        const warning = commandsCount > 0 
+            ? `⚠️ ADVERTENCIA: Esta categoría tiene ${commandsCount} comando${commandsCount !== 1 ? 's' : ''}.\n\n¡También se eliminarán TODOS los comandos de esta categoría!\n\n`
+            : '';
+        
+        if (!confirm(`${warning}¿Eliminar la categoría "${category.name}" permanentemente?`)) return;
+        
+        $.ajax({
+            url: `/cmd/categories/${id}`,
+            method: 'DELETE',
+            data: { _token: $('meta[name="csrf-token"]').attr('content') },
+            success: function() {
+                showToast('🗑️ Categoría eliminada', 'success');
+                loadCmdCategories();
+                loadCmdCategorySelect();
+                loadCmdCommands();
+                loadQuickCommandsPanel();
+            },
+            error: function() {
+                showToast('Error al eliminar la categoría', 'error');
+            }
+        });
+    });
+}
+
+function loadCmdCategorySelect() {
+    $.get('/cmd/categories', function(categories) {
+        let options = '<option value="">Seleccionar categoría</option>';
+        categories.forEach(cat => {
+            options += `<option value="${cat.id}">${cat.icon || '📁'} ${cat.name}</option>`;
+        });
+        $('#cmd-filter-category, #cmd-edit-category').html(options);
+    });
+}
+
+function loadCmdCommands() {
+    let categoryId = $('#cmd-filter-category').val();
+    let url = categoryId ? `/cmd/commands?category=${categoryId}` : '/cmd/commands';
+    
+    $.get(url, function(commands) {
+        let html = '<div class="space-y-2">';
+        commands.forEach(cmd => {
+            html += `
+                <div class="flex items-center justify-between bg-white border rounded-lg p-3 hover:shadow-md">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            ${cmd.command ? `<span class="text-[10px] font-mono bg-gray-100 px-2 py-0.5 rounded-full text-green-600">${cmd.command}</span>` : ''}
+                            <span class="font-bold text-gray-800">${escapeHtml(cmd.title)}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1 truncate">${escapeHtml(cmd.body.substring(0, 80))}</div>
+                        <div class="text-[9px] text-gray-400 mt-1">Categoría: ${cmd.category ? cmd.category.name : 'Sin categoría'}</div>
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="editCmdCommand(${cmd.id})" class="text-blue-500 hover:text-blue-700 px-2 py-1 text-sm">✏️</button>
+                        <button onclick="deleteCmdCommand(${cmd.id})" class="text-red-500 hover:text-red-700 px-2 py-1 text-sm">🗑️</button>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        $('#cmd-commands-list').html(html || '<div class="text-center text-gray-400 py-4">No hay comandos creados</div>');
+    });
+}
+
+function openCmdCommandForm() {
+    $('#cmd-edit-id').val('');
+    $('#cmd-command').val('');
+    $('#cmd-title').val('');
+    $('#cmd-body').val('');
+    $('#cmd-edit-category').val('');
+    $('#cmd-form-title').text('Nuevo Comando');
+    $('#modal-cmd-command-form').removeClass('hidden');
+}
+
+function closeCmdCommandForm() {
+    $('#modal-cmd-command-form').addClass('hidden');
+}
+
+function saveCmdCommand() {
+    let data = {
+        id: $('#cmd-edit-id').val(),
+        category_id: $('#cmd-edit-category').val(),
+        command: $('#cmd-command').val(),
+        title: $('#cmd-title').val(),
+        body: $('#cmd-body').val(),
+        _token: $('meta[name="csrf-token"]').attr('content')
+    };
+    
+    if (!data.category_id) {
+        showToast('Selecciona una categoría', 'warning');
+        return;
+    }
+    if (!data.title || !data.body) {
+        showToast('Título y mensaje son obligatorios', 'warning');
+        return;
+    }
+    
+    $.ajax({
+        url: '/cmd/commands/save',
+        method: 'POST',
+        data: data,
+        success: function() {
+            showToast('✅ Comando guardado', 'success');
+            closeCmdCommandForm();
+            loadCmdCommands();
+            loadQuickCommandsPanel();
+        },
+        error: function() {
+            showToast('Error al guardar', 'error');
+        }
+    });
+}
+
+function deleteCmdCommand(id) {
+    if (!confirm('¿Eliminar este comando?')) return;
+    
+    $.ajax({
+        url: `/cmd/commands/delete/${id}`,
+        method: 'DELETE',
+        data: { _token: $('meta[name="csrf-token"]').attr('content') },
+        success: function() {
+            showToast('🗑️ Comando eliminado', 'success');
+            loadCmdCommands();
+            loadQuickCommandsPanel();
+        }
+    });
+}
+
+function editCmdCommand(id) {
+    $.get(`/cmd/commands/${id}`, function(cmd) {
+        $('#cmd-edit-id').val(cmd.id);
+        $('#cmd-edit-category').val(cmd.category_id);
+        $('#cmd-command').val(cmd.command);
+        $('#cmd-title').val(cmd.title);
+        $('#cmd-body').val(cmd.body);
+        $('#cmd-form-title').text('Editar Comando');
+        $('#modal-cmd-command-form').removeClass('hidden');
+    });
+}
+
+function loadQuickRepliesPanel() {
+    $.get('/cmd/commands', function(commands) {
+        let commandsHtml = '';
+        let categoriesHtml = {};
+        
+        commands.forEach(cmd => {
+            if (cmd.command) {
+                commandsHtml += `<button onclick="insertCommand('${cmd.command}')" class="text-[9px] px-2 py-1 rounded-full bg-gray-100 hover:bg-green-100 text-gray-600 transition-colors">${cmd.command}</button>`;
+            }
+            
+            let catName = cmd.category ? cmd.category.name : 'General';
+            let catIcon = cmd.category ? cmd.category.icon : '📁';
+            if (!categoriesHtml[catName]) {
+                categoriesHtml[catName] = { icon: catIcon, commands: [] };
+            }
+            categoriesHtml[catName].commands.push(cmd);
+        });
+        
+        $('#quick-commands-list').html(commandsHtml || '<span class="text-[9px] text-gray-400">Sin comandos configurados</span>');
+        
+        let categoriesHtmlStr = '';
+        for (let catName in categoriesHtml) {
+            let cat = categoriesHtml[catName];
+            categoriesHtmlStr += `
+                <div class="p-2 border-b">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-sm">${cat.icon}</span>
+                        <span class="text-[10px] font-bold text-gray-600 uppercase">${catName}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+            `;
+            cat.commands.forEach(cmd => {
+                categoriesHtmlStr += `
+                    <button onclick="sendQuickCommand('${escapeHtml(cmd.body)}')" 
+                            class="text-[10px] px-3 py-1 rounded-full bg-white border border-gray-200 hover:border-green-400 hover:bg-green-50 transition-colors shadow-sm">
+                        ${escapeHtml(cmd.title)}
+                    </button>
+                `;
+            });
+            categoriesHtmlStr += `</div></div>`;
+        }
+        
+        $('#quick-replies-categories').html(categoriesHtmlStr || '<div class="text-center text-gray-400 text-xs py-4">No hay comandos configurados</div>');
+    });
+}
+
+function sendQuickCommand(messageBody) {
+    if (!currentContactPhone) {
+        showToast('⚠️ Primero selecciona un chat', 'warning');
+        return;
+    }
+    sendToN8N(messageBody);
+}
+
+function insertCommand(command) {
+    $('#message-input').val(command + ' ');
+    $('#message-input').focus();
+    $('#quick-replies-panel').addClass('hidden');
+}
+
+function sendMessage() {
+    const message = $('#message-input').val().trim();
+    if (!message) return;
+    if (!currentContactPhone) {
+        showToast('⚠️ Primero selecciona un chat', 'warning');
+        return;
+    }
+    sendToN8N(message);
+    $('#message-input').val('');
+    $('#quick-replies-panel').addClass('hidden');
+}
+
+function setupCommandDetection() {
+    $('#message-input').on('input', function() {
+        let value = $(this).val();
+        if (value === '/') {
+            $('#quick-replies-panel').removeClass('hidden');
+            loadQuickCommandsPanel();
+        } else if (value.startsWith('/')) {
+            showCommandSuggestions(value);
+        } else {
+            $('#quick-replies-panel').addClass('hidden');
+            $('#command-suggestions').addClass('hidden');
+        }
+    });
+    
+    $('#message-input').on('keypress', function(e) {
+        if (e.which === 13 && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+}
+
+function showCommandSuggestions(query) {
+    $.get('/cmd/commands', function(commands) {
+        let matches = commands.filter(c => c.command && c.command.toLowerCase().startsWith(query.toLowerCase()));
+        if (matches.length === 0) {
+            $('#command-suggestions').addClass('hidden');
+            return;
+        }
+        
+        let html = '<div class="divide-y">';
+        matches.forEach(m => {
+            let preview = m.body.length > 60 ? m.body.substring(0, 60) + '...' : m.body;
+            html += `
+                <div onclick="selectCommand('${m.command}', '${escapeHtml(m.body)}')" class="p-2 hover:bg-gray-100 cursor-pointer transition-colors">
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-green-600 text-sm font-bold">${m.command}</span>
+                        <span class="text-xs text-gray-500">${escapeHtml(m.title)}</span>
+                    </div>
+                    <div class="text-[10px] text-gray-400 mt-1 truncate">${escapeHtml(preview)}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        $('#command-suggestions').removeClass('hidden').html(html);
+    });
+}
+function setupCommandDetection() {
+    $('#message-input').on('input', function() {
+        let value = $(this).val();
+        if (value === '/') {
+            $('#quick-replies-panel').removeClass('hidden');
+            $('#command-suggestions').addClass('hidden');
+            loadQuickRepliesPanel();
+        } else if (value.startsWith('/')) {
+            $('#quick-replies-panel').addClass('hidden');
+            showCommandSuggestions(value);
+        } else {
+            $('#quick-replies-panel').addClass('hidden');
+            $('#command-suggestions').addClass('hidden');
+        }
+    });
+    
+    $('#message-input').on('keypress', function(e) {
+        if (e.which === 13 && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+}
+
+function selectCommand(command, body) {
+    // Cerrar sugerencias
+    $('#command-suggestions').addClass('hidden');
+    $('#quick-replies-panel').addClass('hidden');
+    
+    // Enviar el mensaje directamente
+    sendQuickCommand(body);
+}
+function openCmdConfigAndClose() {
+    // Cerrar el panel de respuestas rápidas
+    $('#quick-replies-panel').addClass('hidden');
+    $('#command-suggestions').addClass('hidden');
+    
+    // Abrir el modal de configuración
+    openCmdConfig();
+}
 // ========== FUNCIONES GLOBALES (para onclick en HTML) ==========
+window.openCmdConfigAndClose = openCmdConfigAndClose;
+window.openCmdConfig = openCmdConfig;
+window.closeCmdConfig = closeCmdConfig;
+window.showCmdTab = showCmdTab;
+window.createCmdCategory = createCmdCategory;
+window.editCmdCategory = editCmdCategory;
+window.deleteCmdCategory = deleteCmdCategory;
+window.openCmdCommandForm = openCmdCommandForm;
+window.closeCmdCommandForm = closeCmdCommandForm;
+window.saveCmdCommand = saveCmdCommand;
+window.deleteCmdCommand = deleteCmdCommand;
+window.editCmdCommand = editCmdCommand;
+window.sendQuickCommand = sendQuickCommand;
+window.insertCommand = insertCommand;
+window.sendMessage = sendMessage;
+window.selectCommand = selectCommand;
 window.exportContacts = exportContacts;
 window.exportFilteredContacts = exportFilteredContacts;
 window.togglePinChatFromMenu = togglePinChatFromMenu;

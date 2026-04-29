@@ -72,107 +72,122 @@
         </div>
     </div>
 
-    <!-- SEGUNDA COLUMNA: Chat Principal -->
-    <div class="w-2/4 flex flex-col bg-white border-r">
-        <div id="chat-header" class="p-4 bg-gray-50 flex justify-between items-center border-b shadow-sm relative">
-            <div class="flex items-center space-x-2">
-                <span id="contact-name-header" class="font-bold text-gray-700 text-lg">Selecciona un cliente</span>
-                
-                <div id="contact-tags-container" class="flex gap-1"></div>
-                
-                <button id="btn-add-tag" onclick="showTagModal()" class="hidden text-gray-400 hover:text-green-500">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/>
+<!-- SEGUNDA COLUMNA: Chat Principal -->
+<div class="w-2/4 flex flex-col bg-white border-r">
+    <div id="chat-header" class="p-4 bg-gray-50 flex justify-between items-center border-b shadow-sm relative">
+        <div class="flex items-center space-x-2">
+            <span id="contact-name-header" class="font-bold text-gray-700 text-lg">Selecciona un cliente</span>
+            <div id="contact-tags-container" class="flex gap-1"></div>
+            <button id="btn-add-tag" onclick="showTagModal()" class="hidden text-gray-400 hover:text-green-500">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <button id="btn-show-order" onclick="toggleOrderPanel()" class="hidden p-2 text-yellow-600 hover:bg-yellow-100 rounded-full transition-colors">📋</button>
+            <button id="btn-intervene" onclick="toggleIntervention()" class="hidden px-4 py-1 rounded-full text-[10px] font-black shadow-sm transition-all duration-300">IA ON</button>
+
+            <div class="relative inline-block text-left">
+                <button onclick="toggleMenu()" id="btn-menu" class="hidden p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                     </svg>
                 </button>
-                
-            </div>
-
-            <div class="flex items-center space-x-4">
-                
-                <button id="btn-show-order" onclick="toggleOrderPanel()"
-                    class="hidden p-2 text-yellow-600 hover:bg-yellow-100 rounded-full transition-colors">
-                    📋
-                </button>
-                <button id="btn-intervene" onclick="toggleIntervention()" class="hidden px-4 py-1 rounded-full text-[10px] font-black shadow-sm transition-all duration-300">
-                    IA ON
-                </button>
-
-                <div class="relative inline-block text-left">
-                    <button onclick="toggleMenu()" id="btn-menu" class="hidden p-2 text-gray-500 hover:bg-gray-200 rounded-full focus:outline-none transition-colors">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                        </svg>
-                        
-                    </button>
-
-                    <div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-xl z-50 overflow-hidden">
-                        <div class="py-1 text-gray-700">
-                                    <button onclick="togglePinChatFromMenu()" id="btn-pin-chat" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm hover:bg-gray-100 transition-colors">
-            <span>📌</span> <span id="pin-chat-text">Anclar chat</span>
-        </button>
-        <div class="border-t"></div>
-                            <button onclick="clearChat()" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm hover:bg-gray-100 transition-colors italic">
-                                <span>🧹</span> <span>Vaciar chat</span>
-                            </button>
-                            <button onclick="deleteContact()" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-bold border-t transition-colors">
-                                <span>🗑️</span> <span>Eliminar contacto</span>
-                            </button>
-                        </div>
+                <div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-xl z-50 overflow-hidden">
+                    <div class="py-1 text-gray-700">
+                        <button onclick="togglePinChatFromMenu()" id="btn-pin-chat" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm hover:bg-gray-100 transition-colors">
+                            <span>📌</span> <span id="pin-chat-text">Anclar chat</span>
+                        </button>
+                        <div class="border-t"></div>
+                        <button onclick="clearChat()" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm hover:bg-gray-100 transition-colors italic">
+                            <span>🧹</span> <span>Vaciar chat</span>
+                        </button>
+                        <button onclick="deleteContact()" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-bold border-t transition-colors">
+                            <span>🗑️</span> <span>Eliminar contacto</span>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div id="chat-messages" class="flex-1 p-6 overflow-y-auto flex flex-col space-y-4 shadow-inner">
-            <div class="flex flex-col items-center justify-center h-full opacity-30">
-                <p class="text-lg font-bold">Carnicería Don Guando</p>
-                <p class="text-sm">Selecciona un chat para ver los mensajes</p>
-            </div>
+    </div>
+    
+    <div id="chat-messages" class="flex-1 p-6 overflow-y-auto flex flex-col space-y-4 shadow-inner">
+        <div class="flex flex-col items-center justify-center h-full opacity-30">
+            <p class="text-lg font-bold">Carnicería Don Guando</p>
+            <p class="text-sm">Selecciona un chat para ver los mensajes</p>
         </div>
-            <!-- ========== NUEVO: ÁREA DE RESPUESTAS RÁPIDAS (como WhatsApp) ========== -->
-    <div id="quick-reply-bar" class="border-t bg-white shadow-lg">
-        <!-- Botón para abrir/cerrar respuestas rápidas -->
-        <div class="flex items-center gap-2 px-3 py-2">
-            <button onclick="toggleQuickReplies()" class="text-gray-500 hover:text-blue-500 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            </button>
-            <div class="flex-1">
-                <input type="text" id="message-input" placeholder="Escribe un mensaje..." 
-                       class="w-full border-0 focus:ring-0 text-sm py-2 outline-none">
-            </div>
-            <button onclick="sendMessage()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded-full text-sm font-bold transition-colors">
-                Enviar
-            </button>
-        </div>
-        
-        <!-- Panel de respuestas rápidas (oculto por defecto) -->
-        <div id="quick-replies-panel" class="hidden border-t bg-gray-50 max-h-64 overflow-y-auto">
-            <!-- Comandos rápidos (como WhatsApp Business) -->
-            <div class="p-2 border-b bg-white">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📱 Comandos rápidos</span>
-                    <span class="text-[8px] text-gray-300">Escribe / en el chat</span>
+    </div>
+
+    <!-- Área de entrada de mensajes con sistema de comandos -->
+<div class="border-t bg-white">
+    <div class="flex items-center gap-2 px-3 py-2">
+        <div id="message-input-container" class="flex-1 relative">
+            <input type="text" id="message-input" placeholder="Escribe un mensaje... Escribe / para ver comandos" 
+                   class="w-full border-0 focus:ring-0 text-sm py-2 outline-none">
+            
+            <!-- Panel de respuestas rápidas (aparece al escribir /) -->
+            <div id="quick-replies-panel" class="hidden">
+                <div class="sticky top-0 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-2 rounded-t-lg">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm">⚡</span>
+                        <span class="text-xs font-bold uppercase">Respuestas Rápidas</span>
+                        <span class="text-[9px] ml-auto">Escribe / + comando</span>
+                    </div>
                 </div>
-                <div id="quick-commands-list" class="flex flex-wrap gap-2">
-                    <span class="text-[9px] text-gray-400">Cargando comandos...</span>
+                <div class="p-2 border-b bg-gray-50">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📱 Comandos</span>
+                    </div>
+                    <div id="quick-commands-list" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div id="quick-replies-categories" class="divide-y max-h-48 overflow-y-auto"></div>
+                <div class="sticky bottom-0 p-2 border-t bg-gray-50 text-center">
+                    <button onclick="openCmdConfigAndClose()" class="text-[10px] text-blue-500 hover:underline font-bold">⚙️ Administrar respuestas rápidas</button>
                 </div>
             </div>
             
-            <!-- Respuestas rápidas por categoría -->
-            <div id="quick-replies-categories" class="divide-y">
-                <div class="text-center text-gray-400 text-xs py-4">Cargando respuestas rápidas...</div>
+            <!-- Sugerencias de comandos (aparece al escribir /palabra) -->
+            <div id="command-suggestions" class="hidden"></div>
+        </div>
+        
+        <!-- Botón rayo para abrir configuración -->
+        <button onclick="openCmdConfig()" id="btn-cmd-config" class="hidden p-2 text-yellow-500 hover:bg-yellow-100 rounded-full transition-colors" title="Configurar comandos rápidos">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        
+        <button onclick="sendMessage()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded-full text-sm font-bold transition-colors">
+            Enviar
+        </button>
+    </div>
+</div>
+    
+    <!-- Panel de respuestas rápidas (oculto por defecto) -->
+    <div id="quick-replies-panel" class="hidden border-t bg-gray-50 max-h-64 overflow-y-auto">
+        <!-- Comandos rápidos -->
+        <div class="p-2 border-b bg-white">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📱 Comandos rápidos</span>
+                <span class="text-[8px] text-gray-300">Escribe / en el chat</span>
+            </div>
+            <div id="quick-commands-list" class="flex flex-wrap gap-2">
+                <span class="text-[9px] text-gray-400">Cargando comandos...</span>
             </div>
         </div>
         
-        <!-- Sugerencias de comandos (aparece al escribir /) -->
-        <div id="command-suggestions" class="hidden absolute bottom-full left-0 right-0 bg-white border rounded-t-lg shadow-lg max-h-48 overflow-y-auto z-50"></div>
-    </div>
-</div>
+        <!-- Respuestas rápidas por categoría -->
+        <div id="quick-replies-categories" class="divide-y">
+            <div class="text-center text-gray-400 text-xs py-4">Cargando respuestas rápidas...</div>
+        </div>
     </div>
     
+    <!-- Sugerencias de comandos (aparece al escribir /) -->
+    <div id="command-suggestions" class="hidden absolute bottom-full left-0 right-0 bg-white border rounded-t-lg shadow-lg max-h-48 overflow-y-auto z-50"></div>
+</div>
+   </div> 
 
     <!-- TERCERA COLUMNA: Panel de Ventas -->
     <div class="w-1/4 flex flex-col bg-white p-4">
@@ -392,106 +407,102 @@
     </div>
 </div>
 
-<!-- Modal Configuración de Respuestas Rápidas -->
-<div id="modal-quick-config" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+<!-- Modal Configuración de Comandos (SISTEMA DE COMANDOS) -->
+<div id="modal-cmd-config" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
     <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-        <div class="p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white flex justify-between items-center rounded-t-2xl">
-            <h3 class="text-lg font-black uppercase">⚙️ Configurar Respuestas Rápidas</h3>
-            <button onclick="closeConfigQuickMessages()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+        <div class="p-4 bg-gradient-to-r from-green-600 to-teal-600 text-white flex justify-between items-center rounded-t-2xl">
+            <h3 class="text-lg font-black uppercase">⚡ Configurar Comandos Rápidos</h3>
+            <button onclick="closeCmdConfig()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
         </div>
         
-        <!-- Tabs -->
         <div class="flex border-b">
-            <button onclick="showTab('categories')" id="tab-categories" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors border-b-2 border-blue-500 text-blue-600">
+            <button onclick="showCmdTab('categories')" id="cmd-tab-categories" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors border-b-2 border-green-500 text-green-600">
                 📁 Categorías
             </button>
-            <button onclick="showTab('responses')" id="tab-responses" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors text-gray-500">
-                💬 Respuestas
+            <button onclick="showCmdTab('commands')" id="cmd-tab-commands" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors text-gray-500">
+                💬 Comandos
             </button>
         </div>
         
         <div class="flex-1 overflow-y-auto p-4">
             <!-- Panel de Categorías -->
-            <div id="categories-panel">
-                <div class="flex gap-2 mb-4">
-                    <input type="text" id="new-category-name" placeholder="Nueva categoría (ej: Carnes, Pollos, Cerdo)" 
-                           class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-                    <input type="text" id="new-category-icon" placeholder="Icono" value="🥩" 
-                           class="w-20 border rounded-lg px-3 py-2 text-sm text-center">
-                    <button onclick="createCategory()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition-colors">
-                        + Agregar
-                    </button>
+            <div id="cmd-categories-panel">
+                <!-- Formulario para agregar nueva categoría -->
+                <div class="bg-gray-50 rounded-lg p-3 mb-4 border">
+                    <p class="text-xs font-bold text-gray-500 mb-2 uppercase">➕ Agregar nueva categoría</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="cmd-new-category-name" placeholder="Nombre (ej: Carnes, Pollos, Cerdo)" 
+                               class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+                        <input type="text" id="cmd-new-category-icon" placeholder="Icono" value="🥩" 
+                               class="w-20 border rounded-lg px-3 py-2 text-sm text-center">
+                        <button onclick="createCmdCategory()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm">
+                            + Agregar
+                        </button>
+                    </div>
                 </div>
-                <div id="categories-list" class="space-y-2">
-                    <!-- Lista de categorías -->
+                
+                <!-- Lista de categorías existentes -->
+                <p class="text-xs font-bold text-gray-500 mb-2 uppercase">📋 Categorías existentes</p>
+                <div id="cmd-categories-list" class="space-y-2 max-h-96 overflow-y-auto">
+                    <div class="text-center text-gray-400 py-4">Cargando categorías...</div>
                 </div>
             </div>
             
-            <!-- Panel de Respuestas -->
-            <div id="responses-panel" class="hidden">
+            <!-- Panel de Comandos -->
+            <div id="cmd-commands-panel" class="hidden">
                 <div class="flex gap-2 mb-4">
-                    <select id="response-category" class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    <select id="cmd-filter-category" class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
                         <option value="">Todas las categorías</option>
                     </select>
-                    <button onclick="openResponseForm()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition-colors">
-                        + Nueva Respuesta
+                    <button onclick="openCmdCommandForm()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold">
+                        + Nuevo Comando
                     </button>
                 </div>
-                <div id="responses-list" class="space-y-2 max-h-96 overflow-y-auto">
-                    <!-- Lista de respuestas -->
-                </div>
+                <div id="cmd-commands-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
             </div>
         </div>
         
         <div class="p-4 border-t bg-gray-50 flex justify-end">
-            <button onclick="closeConfigQuickMessages()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
-                Cerrar
-            </button>
+            <button onclick="closeCmdConfig()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cerrar</button>
         </div>
     </div>
 </div>
-<!-- Modal Configuración de Respuestas Rápidas (ÚNICO) -->
-<div id="modal-quick-config" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
-    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-        <div class="p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white flex justify-between items-center rounded-t-2xl">
-            <h3 class="text-lg font-black uppercase">⚙️ Configurar Respuestas Rápidas</h3>
-            <button onclick="closeConfigQuickMessages()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+
+<!-- Modal para editar comando individual -->
+<div id="modal-cmd-command-form" class="hidden fixed inset-0 z-[110] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
+        <h3 class="text-xl font-black text-gray-800 mb-4 uppercase" id="cmd-form-title">Nuevo Comando</h3>
+        <input type="hidden" id="cmd-edit-id">
+        
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Categoría</label>
+            <select id="cmd-edit-category" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+                <option value="">Seleccionar categoría</option>
+            </select>
         </div>
         
-        <div class="flex border-b">
-            <button onclick="showTab('categories')" id="tab-categories" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors border-b-2 border-blue-500 text-blue-600">
-                📁 Categorías
-            </button>
-            <button onclick="showTab('responses')" id="tab-responses" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors text-gray-500">
-                💬 Respuestas
-            </button>
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Comando (ej: /cerdo)</label>
+            <input type="text" id="cmd-command" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500" 
+                   placeholder="/comando">
+            <p class="text-[9px] text-gray-400 mt-1">Escribe / + comando en el chat</p>
         </div>
         
-        <div class="flex-1 overflow-y-auto p-4">
-            <!-- Panel de Categorías -->
-            <div id="categories-panel">
-                <div class="flex gap-2 mb-4">
-                    <input type="text" id="new-category-name" placeholder="Nueva categoría (ej: Carnes)" class="flex-1 border rounded-lg px-3 py-2 text-sm">
-                    <input type="text" id="new-category-icon" placeholder="Icono" value="🥩" class="w-20 border rounded-lg px-3 py-2 text-sm text-center">
-                    <button onclick="createCategory()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold">+</button>
-                </div>
-                <div id="categories-list" class="space-y-2"></div>
-            </div>
-            
-            <!-- Panel de Respuestas -->
-            <div id="responses-panel" class="hidden">
-                <div class="flex gap-2 mb-4">
-                    <select id="response-category" class="border rounded-lg px-3 py-2 text-sm flex-1">
-                        <option value="">Todas las categorías</option>
-                    </select>
-                    <button onclick="openResponseForm()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold">+ Nueva</button>
-                </div>
-                <div id="responses-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
-            </div>
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Título</label>
+            <input type="text" id="cmd-title" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500" 
+                   placeholder="Título visible en el panel">
         </div>
         
-        <div class="p-4 border-t bg-gray-50 flex justify-end">
-            <button onclick="closeConfigQuickMessages()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cerrar</button>
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Mensaje</label>
+            <textarea id="cmd-body" rows="4" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500" 
+                      placeholder="Contenido del mensaje a enviar..."></textarea>
+        </div>
+        
+        <div class="flex gap-2 pt-2">
+            <button onclick="closeCmdCommandForm()" class="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
+            <button onclick="saveCmdCommand()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-bold">Guardar</button>
         </div>
     </div>
 </div>

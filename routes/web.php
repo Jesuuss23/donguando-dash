@@ -10,7 +10,9 @@ use App\Models\Message;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\ProductImportController;
-
+use App\Http\Controllers\ExportController;
+use App\Models\Category;
+use App\Models\QuickCommand;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -296,7 +298,7 @@ Route::delete('/quick-responses/delete/{id}', function ($id) {
 */
 
 Route::post('/api/sync-n8n', function (Request $request) {
-    $n8nUrl = 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook/sync-contact-whatsapp';
+    $n8nUrl = 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook-test/sync-contact-whatsapp';
     
     $response = Http::post($n8nUrl, [
         'name' => $request->input('name'),
@@ -311,8 +313,80 @@ Route::post('/api/sync-n8n', function (Request $request) {
     ]);
 });
 
-use App\Http\Controllers\ExportController;
 
+// ========== SISTEMA DE COMANDOS (NUEVO, TOTALMENTE INDEPENDIENTE) ==========
+
+// Categorías
+Route::get('/cmd/categories', function () {
+    return App\Models\Category::with('quickCommands')->orderBy('order')->get();
+});
+
+Route::post('/cmd/categories', function (Request $request) {
+    $category = App\Models\Category::create([
+        'name' => $request->name,
+        'icon' => $request->icon ?? '📁',
+        'slug' => \Str::slug($request->name),
+        'order' => $request->order ?? 0
+    ]);
+    return response()->json($category);
+});
+
+Route::put('/cmd/categories/{id}', function (Request $request, $id) {
+    $category = App\Models\Category::findOrFail($id);
+    $category->update($request->only(['name', 'icon', 'order']));
+    return response()->json($category);
+});
+
+Route::delete('/cmd/categories/{id}', function ($id) {
+    $category = App\Models\Category::findOrFail($id);
+    $category->quickCommands()->delete();
+    $category->delete();
+    return response()->json(['status' => 'success']);
+});
+
+// Comandos (respuestas rápidas del sistema de comandos)
+Route::get('/cmd/commands', function () {
+    return App\Models\QuickCommand::with('category')->orderBy('order')->get();
+});
+
+Route::get('/cmd/commands/{id}', function ($id) {
+    return App\Models\QuickCommand::with('category')->findOrFail($id);
+});
+
+Route::post('/cmd/commands/save', function (Request $request) {
+    $request->validate([
+        'title' => 'required',
+        'body' => 'required',
+    ]);
+
+    $command = App\Models\QuickCommand::updateOrCreate(
+        ['id' => $request->id],
+        [
+            'category_id' => $request->category_id,
+            'command' => $request->command,
+            'title' => $request->title,
+            'body' => $request->body,
+            'order' => $request->order ?? 0
+        ]
+    );
+
+    return response()->json($command);
+});
+
+Route::delete('/cmd/commands/delete/{id}', function ($id) {
+    $command = App\Models\QuickCommand::findOrFail($id);
+    $command->delete();
+    return response()->json(['status' => 'success']);
+});
+Route::get('/cmd/categories', function () {
+    $categories = Category::with('quickCommands')->orderBy('order')->get();
+    \Log::info('Categorías devueltas:', $categories->toArray());
+    return $categories;
+});
+// Obtener una categoría específica (para el delete)
+Route::get('/cmd/categories/{id}', function ($id) {
+    return Category::with('quickCommands')->findOrFail($id);
+});
 // Exportar contactos a Excel
 Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');
 Route::get('/export/contacts/filtered', [ExportController::class, 'exportFiltered'])->name('export.filtered');

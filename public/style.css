@@ -237,3 +237,128 @@ input:focus, textarea:focus, select:focus {
 tbody tr:hover {
     background-color: #f8fafc;
 }
+/* Sugerencias de comandos - debe aparecer encima del input */
+#command-suggestions {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: 4px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+/* Panel de respuestas rápidas */
+#quick-replies-panel {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: 4px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+/* Panel de respuestas rápidas - scroll suave */
+#quick-replies-panel {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    background: white;
+}
+
+#quick-replies-panel::-webkit-scrollbar {
+    width: 4px;
+}
+
+#quick-replies-panel::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#quick-replies-panel::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+/* Sugerencias de comandos */
+#command-suggestions {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    background: white;
+}
+/* Mejora de scroll en paneles */
+#quick-replies-panel::-webkit-scrollbar,
+#command-suggestions::-webkit-scrollbar {
+    width: 4px;
+}
+
+#quick-replies-panel::-webkit-scrollbar-track,
+#command-suggestions::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#quick-replies-panel::-webkit-scrollbar-thumb,
+#command-suggestions::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+/* Contenedor relativo para el input */
+#message-input-container {
+    position: relative;
+}
+
+/* Panel de respuestas rápidas - aparece encima sin tapar */
+#quick-replies-panel {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: 8px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    max-height: 350px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+/* Sugerencias de comandos */
+#command-suggestions {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: 8px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1001;
+}
+
+/* Animación suave */
+#quick-replies-panel, #command-suggestions {
+    animation: fadeInUp 0.2s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
