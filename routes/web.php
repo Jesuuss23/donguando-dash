@@ -13,6 +13,9 @@ use App\Http\Controllers\ProductImportController;
 use App\Http\Controllers\ExportController;
 use App\Models\Category;
 use App\Models\QuickCommand;
+use App\Models\Promotion;
+use App\Models\File;
+use Illuminate\Support\Facades\Storage;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -386,6 +389,277 @@ Route::get('/cmd/categories', function () {
 // Obtener una categoría específica (para el delete)
 Route::get('/cmd/categories/{id}', function ($id) {
     return Category::with('quickCommands')->findOrFail($id);
+});
+
+
+// ========== SISTEMA DE PROMOCIONES (PDF e IMÁGENES) ==========
+
+// Obtener todas las promociones
+Route::get('/promotions', function () {
+    return Promotion::orderBy('order')->get();
+});
+
+// Obtener una promoción específica
+Route::get('/promotions/{id}', function ($id) {
+    return Promotion::findOrFail($id);
+});
+
+
+// Eliminar promoción
+Route::delete('/promotions/delete/{id}', function ($id) {
+    $promotion = Promotion::findOrFail($id);
+    $promotion->delete();
+    return response()->json(['status' => 'success']);
+});
+
+// ========== ENVÍO DE PROMOCIONES A N8N ==========
+
+Route::post('/api/send-promo', function (Request $request) {
+    $phone = $request->input('phone');
+    $promotionId = $request->input('promotion_id');
+    $caption = $request->input('caption', '');
+    
+    $promotion = Promotion::with('file')->findOrFail($promotionId);
+    $file = $promotion->file;
+    
+    if (!$file) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Archivo no encontrado'
+        ], 404);
+    }
+    
+    // URL pública de tu servidor
+    $fileUrl = url('/api/file/' . $file->id);
+    $mediaType = str_starts_with($file->mime_type, 'image/') ? 'image' : 'document';
+    
+    // Enviar a n8n
+    $n8nPromoUrl = 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook-test/send-promo';
+    
+    $response = Http::post($n8nPromoUrl, [
+        'phone' => $phone,
+        'file_url' => $fileUrl,
+        'file_name' => $file->original_name,
+        'mime_type' => $file->mime_type,
+        'media_type' => $mediaType,
+        'caption' => $caption ?: $promotion->caption
+    ]);
+    
+    return response()->json([
+        'success' => $response->successful(),
+        'status' => $response->status(),
+        'message' => $response->successful() ? 'Promoción enviada' : 'Error en n8n'
+    ]);
+});
+
+// ========== GESTIÓN DE ARCHIVOS PARA PROMOCIONES ==========
+
+// Subir archivo
+Route::post('/files/upload', function (Request $request) {
+    $request->validate([
+        'file' => 'required|file|max:95000', // 60MB en KB
+        'type' => 'required|in:pdf,image'
+    ]);
+    
+    // Validar tipo MIME según el tipo seleccionado
+    $uploadedFile = $request->file('file');
+    $mimeType = $uploadedFile->getMimeType();
+    
+    if ($request->type === 'pdf') {
+        if ($mimeType !== 'application/pdf') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se permiten archivos PDF en esta sección.'
+            ], 400);
+        }
+    } else {
+        if (!str_starts_with($mimeType, 'image/')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se permiten imágenes (JPEG, PNG, GIF) en esta sección.'
+            ], 400);
+        }
+    }
+    
+    $uploadedFile = $request->file('file');
+    $originalName = $uploadedFile->getClientOriginalName();
+    $mimeType = $uploadedFile->getMimeType();
+    $size = $uploadedFile->getSize();
+    
+    // Generar nombre único
+    $extension = $uploadedFile->getClientOriginalExtension();
+    $savedAs = uniqid() . '_' . time() . '.' . $extension;
+    $directory = $request->type === 'pdf' ? 'promotions/pdf' : 'promotions/images';
+    
+    // Guardar archivo
+    $path = $uploadedFile->storeAs($directory, $savedAs, 'public');
+    
+    // Guardar en BD
+    $file = File::create([
+        'original_name' => $originalName,
+        'saved_as' => $path,
+        'mime_type' => $mimeType,
+        'size' => $size
+    ]);
+    
+    return response()->json($file);
+});
+
+// Listar archivos (para el selector)
+Route::get('/files/list', function () {
+    return File::orderBy('created_at', 'desc')->get();
+});
+
+
+// Actualizar promoción (ahora usa file_id)
+Route::post('/promotions/save', function (Request $request) {
+    try {
+        \Log::info('=== INICIO GUARDAR PROMOCIÓN ===');
+        \Log::info('Datos recibidos:', $request->all());
+        
+        // Verificar que el archivo existe
+        if ($request->file_id) {
+            $fileExists = File::find($request->file_id);
+            \Log::info('Verificando file_id:', [
+                'file_id' => $request->file_id,
+                'exists' => $fileExists ? 'SÍ' : 'NO'
+            ]);
+            
+            if (!$fileExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El archivo seleccionado no existe en la base de datos'
+                ], 400);
+            }
+        }
+        
+        $validator = validator($request->all(), [
+            'type' => 'required|in:pdf,image',
+            'command' => 'required',
+            'title' => 'required',
+            'file_id' => 'required|exists:files,id'
+        ]);
+        
+        if ($validator->fails()) {
+            \Log::error('Validación falló:', $validator->errors()->toArray());
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        $data = [
+            'type' => $request->type,
+            'command' => $request->command,
+            'title' => $request->title,
+            'caption' => $request->caption,
+            'file_id' => $request->file_id,
+            'order' => $request->order ?? 0
+        ];
+        
+        \Log::info('Datos a guardar:', $data);
+        
+        $promotion = Promotion::updateOrCreate(
+            ['id' => $request->id],
+            $data
+        );
+        
+        \Log::info('Promoción guardada con ID: ' . $promotion->id);
+        \Log::info('=== FIN GUARDAR PROMOCIÓN ===');
+        
+        return response()->json(['success' => true, 'promotion' => $promotion]);
+        
+    } catch (\Exception $e) {
+        \Log::error('ERROR EN PROMOTIONS/SAVE:', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
+Route::delete('/files/delete/{id}', function ($id) {
+    try {
+        \Log::info('=== ELIMINAR ARCHIVO ===', ['file_id' => $id]);
+        
+        $file = File::findOrFail($id);
+        
+        // Verificar si está siendo usado
+        $usageCount = $file->promotions()->count();
+        if ($usageCount > 0) {
+            \Log::warning('Archivo en uso, no se puede eliminar', [
+                'file_id' => $id,
+                'uso_en_promociones' => $usageCount
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => "No se puede eliminar. El archivo está siendo usado por {$usageCount} promoción(es)."
+            ], 400);
+        }
+        
+        // Eliminar archivo físico
+        $fullPath = Storage::disk('public')->path($file->saved_as);
+        if (file_exists($fullPath)) {
+            unlink($fullPath);
+            \Log::info('Archivo físico eliminado: ' . $fullPath);
+        }
+        
+        // Eliminar registro
+        $file->delete();
+        
+        \Log::info('Archivo eliminado correctamente');
+        
+        return response()->json(['success' => true]);
+        
+    } catch (\Exception $e) {
+        \Log::error('ERROR AL ELIMINAR ARCHIVO:', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
+// ========== API PARA N8N (OBTENER ARCHIVO POR ID) ==========
+Route::get('/api/file/{id}', function ($id) {
+    $file = File::findOrFail($id);
+    $fullPath = Storage::disk('public')->path($file->saved_as);
+    
+    if (!file_exists($fullPath)) {
+        return response()->json(['error' => 'File not found'], 404);
+    }
+    
+    return response()->file($fullPath, [
+        'Content-Type' => $file->mime_type,
+        'Content-Disposition' => 'inline; filename="' . $file->original_name . '"'
+    ]);
+});
+Route::put('/files/rename/{id}', function ($id, Request $request) {
+    $file = File::findOrFail($id);
+    
+    // Obtener extensión original
+    $extension = pathinfo($file->saved_as, PATHINFO_EXTENSION);
+    $newSavedAs = 'promotions/' . ($file->mime_type === 'application/pdf' ? 'pdf' : 'images') . '/' . \Str::slug($request->name) . '_' . time() . '.' . $extension;
+    
+    // Renombrar archivo físico
+    Storage::disk('public')->move($file->saved_as, $newSavedAs);
+    
+    // Actualizar base de datos
+    $file->original_name = $request->name;
+    $file->saved_as = $newSavedAs;
+    $file->save();
+    
+    return response()->json(['success' => true]);
 });
 // Exportar contactos a Excel
 Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');

@@ -10,6 +10,7 @@ let currentContactName = null;    // Nombre del contacto
 let isFetching = false;
 let currentSelectedPrice = 0;
 
+
 // ========== FUNCIONES AUXILIARES ==========
 function escapeHtml(text) {
     if (!text) return '';
@@ -164,6 +165,7 @@ function loadChat(contactId, name, isIntervened) {
     $('#btn-intervene, #btn-menu, #btn-add-tag').removeClass('hidden');
     // Mostrar botón de configuración de comandos
 $('#btn-cmd-config').removeClass('hidden');
+$('#btn-promo-config').removeClass('hidden');
     
     updateButtonUI(isIntervened);
     fetchMessages(contactId);
@@ -1410,28 +1412,6 @@ function sendMessage() {
     $('#quick-replies-panel').addClass('hidden');
 }
 
-function setupCommandDetection() {
-    $('#message-input').on('input', function() {
-        let value = $(this).val();
-        if (value === '/') {
-            $('#quick-replies-panel').removeClass('hidden');
-            loadQuickCommandsPanel();
-        } else if (value.startsWith('/')) {
-            showCommandSuggestions(value);
-        } else {
-            $('#quick-replies-panel').addClass('hidden');
-            $('#command-suggestions').addClass('hidden');
-        }
-    });
-    
-    $('#message-input').on('keypress', function(e) {
-        if (e.which === 13 && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-}
-
 function showCommandSuggestions(query) {
     $.get('/cmd/commands', function(commands) {
         let matches = commands.filter(c => c.command && c.command.toLowerCase().startsWith(query.toLowerCase()));
@@ -1461,16 +1441,48 @@ function showCommandSuggestions(query) {
 function setupCommandDetection() {
     $('#message-input').on('input', function() {
         let value = $(this).val();
+        
         if (value === '/') {
+            // Solo '/': mostrar panel de comandos rápidos
             $('#quick-replies-panel').removeClass('hidden');
             $('#command-suggestions').addClass('hidden');
+            $('#promo-suggestions').addClass('hidden');
             loadQuickRepliesPanel();
-        } else if (value.startsWith('/')) {
-            $('#quick-replies-panel').addClass('hidden');
-            showCommandSuggestions(value);
-        } else {
+        } 
+        else if (value.startsWith('/')) {
+            // Buscar tanto en comandos normales como en promociones
+            $.when(
+                $.get('/cmd/commands'),
+                $.get('/promotions')
+            ).done(function(cmdResponse, promoResponse) {
+                let commands = cmdResponse[0];
+                let promotions = promoResponse[0];
+                
+                let cmdMatches = commands.filter(c => c.command && c.command.toLowerCase().startsWith(value.toLowerCase()));
+                let promoMatches = promotions.filter(p => p.command && p.command.toLowerCase().startsWith(value.toLowerCase()));
+                
+                // Priorizar promociones si hay coincidencias
+                if (promoMatches.length > 0) {
+                    $('#quick-replies-panel').addClass('hidden');
+                    $('#command-suggestions').addClass('hidden');
+                    showPromoSuggestions(promoMatches, value);
+                } 
+                else if (cmdMatches.length > 0) {
+                    $('#quick-replies-panel').addClass('hidden');
+                    $('#promo-suggestions').addClass('hidden');
+                    showCommandSuggestions(cmdMatches);
+                } 
+                else {
+                    $('#quick-replies-panel').addClass('hidden');
+                    $('#command-suggestions').addClass('hidden');
+                    $('#promo-suggestions').addClass('hidden');
+                }
+            });
+        } 
+        else {
             $('#quick-replies-panel').addClass('hidden');
             $('#command-suggestions').addClass('hidden');
+            $('#promo-suggestions').addClass('hidden');
         }
     });
     
@@ -1498,7 +1510,491 @@ function openCmdConfigAndClose() {
     // Abrir el modal de configuración
     openCmdConfig();
 }
+
+
+// ========== SISTEMA DE PROMOCIONES (PDF e IMÁGENES) ==========
+
+let currentPromoType = 'pdf';
+
+function openPromoConfig() {
+    $('#modal-promo-config').removeClass('hidden');
+    loadPromotions('pdf');
+    loadPromotions('image');
+}
+
+function closePromoConfig() {
+    $('#modal-promo-config').addClass('hidden');
+}
+
+function showPromoTab(type) {
+    currentPromoType = type;
+    
+    if (type === 'pdf') {
+        $('#promo-pdf-panel').removeClass('hidden');
+        $('#promo-image-panel').addClass('hidden');
+        $('#promo-tab-pdf').addClass('border-b-2 border-pink-500 text-pink-600').removeClass('text-gray-500');
+        $('#promo-tab-image').removeClass('border-b-2 border-pink-500 text-pink-600').addClass('text-gray-500');
+        loadPromotions('pdf');
+    } else {
+        $('#promo-pdf-panel').addClass('hidden');
+        $('#promo-image-panel').removeClass('hidden');
+        $('#promo-tab-image').addClass('border-b-2 border-pink-500 text-pink-600').removeClass('text-gray-500');
+        $('#promo-tab-pdf').removeClass('border-b-2 border-pink-500 text-pink-600').addClass('text-gray-500');
+        loadPromotions('image');
+    }
+}
+
+function loadPromotions(type) {
+    $.get('/promotions', function(promotions) {
+        let filtered = promotions.filter(p => p.type === type);
+        let container = type === 'pdf' ? '#promo-pdf-list' : '#promo-image-list';
+        let html = '';
+        
+        if (filtered.length === 0) {
+            html = '<div class="text-center text-gray-400 py-4">No hay promociones de este tipo</div>';
+        } else {
+            filtered.forEach(promo => {
+                // Usar file_id en lugar de url
+                const fileId = promo.file_id;
+                const hasFile = fileId ? '✅' : '❌';
+                
+                html += `
+                    <div class="flex items-start justify-between bg-white border rounded-lg p-3 hover:shadow-md transition-shadow">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-[10px] font-mono bg-gray-100 px-2 py-0.5 rounded-full text-pink-600">${escapeHtml(promo.command)}</span>
+                                <span class="font-bold text-gray-800">${escapeHtml(promo.title)}</span>
+                            </div>
+                            ${promo.caption ? `<div class="text-xs text-gray-500 mt-1">${escapeHtml(promo.caption)}</div>` : ''}
+                            <div class="text-[9px] text-gray-400 mt-1">Archivo ID: ${fileId || 'Sin archivo'}</div>
+                        </div>
+                        <div class="flex gap-1 ml-2">
+                            <button onclick="editPromotion(${promo.id})" class="text-blue-500 hover:text-blue-700 px-2 py-1 text-sm">✏️</button>
+                            <button onclick="deletePromotion(${promo.id})" class="text-red-500 hover:text-red-700 px-2 py-1 text-sm">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        $(container).html(html);
+    });
+}
+
+function openPromoForm(type) {
+    $('#promo-edit-id').val('');
+    $('#promo-type').val(type);
+    $('#promo-command').val('');
+    $('#promo-title').val('');
+    $('#promo-caption').val('');
+    $('#promo-form-title').text(type === 'pdf' ? '📄 Nuevo Comando PDF' : '🖼️ Nuevo Comando Imagen');
+    $('#modal-promo-form').removeClass('hidden');
+    
+    // Forzar recarga del selector
+    loadFileSelector();
+    
+    // También refrescar la lista de archivos en el manager
+    if (currentFileTab === 'pdf') {
+        loadFileList('pdf');
+    } else {
+        loadFileList('image');
+    }
+}
+
+function closePromoForm() {
+    $('#modal-promo-form').addClass('hidden');
+}
+
+function savePromotion() {
+     let data = {
+        id: $('#promo-edit-id').val(),
+        type: $('#promo-type').val(),
+        command: $('#promo-command').val(),
+        title: $('#promo-title').val(),
+        caption: $('#promo-caption').val(),
+        _token: $('meta[name="csrf-token"]').attr('content')
+    };
+    
+    // Solo agregar file_id si tiene valor
+    let fileId = $('#promo-file-select').val();
+    if (fileId) {
+        data.file_id = fileId;
+    }
+    
+    if (!data.command.startsWith('/')) {
+        data.command = '/' + data.command;
+    }
+    
+    $.ajax({
+        url: '/promotions/save',
+        method: 'POST',
+        data: data,
+        success: function() {
+            showToast('✅ Promoción guardada', 'success');
+            closePromoForm();
+            loadPromotions('pdf');
+            loadPromotions('image');
+            loadPromotionsPanel();
+        },
+        error: function() {
+            showToast('Error al guardar', 'error');
+        }
+    });
+}
+
+function editPromotion(id) {
+    $.get(`/promotions/${id}`, function(promo) {
+        $('#promo-edit-id').val(promo.id);
+        $('#promo-type').val(promo.type);
+        $('#promo-command').val(promo.command);
+        $('#promo-title').val(promo.title);
+        $('#promo-caption').val(promo.caption || '');
+        $('#promo-form-title').text(promo.type === 'pdf' ? '📄 Editar Comando PDF' : '🖼️ Editar Comando Imagen');
+        $('#modal-promo-form').removeClass('hidden');
+
+        loadFileSelector(promo.file_id);
+    });
+}
+
+function deletePromotion(id) {
+    if (!confirm('¿Eliminar esta promoción?')) return;
+    
+    $.ajax({
+        url: `/promotions/delete/${id}`,
+        method: 'DELETE',
+        data: { _token: $('meta[name="csrf-token"]').attr('content') },
+        success: function() {
+            showToast('🗑️ Promoción eliminada', 'success');
+            loadPromotions('pdf');
+            loadPromotions('image');
+            loadPromotionsPanel();
+        }
+    });
+}
+
+function loadPromotionsPanel() {
+    $.get('/promotions', function(promotions) {
+        let commandsHtml = '';
+        
+        promotions.forEach(promo => {
+            commandsHtml += `<button onclick="insertPromoCommand('${promo.command}')" class="text-[9px] px-2 py-1 rounded-full bg-gray-100 hover:bg-pink-100 text-gray-600 transition-colors">${promo.command}</button>`;
+        });
+        
+        $('#promo-commands-list').html(commandsHtml || '<span class="text-[9px] text-gray-400">Sin promociones configuradas</span>');
+        
+        // Agrupar por tipo para mostrar en el panel
+        let pdfHtml = '';
+        let imageHtml = '';
+        
+        promotions.forEach(promo => {
+            let itemHtml = `
+                <div class="flex items-center justify-between p-2 border-b">
+                    <div>
+                        <span class="font-mono text-[10px] text-pink-600">${promo.command}</span>
+                        <span class="text-xs font-bold ml-2">${escapeHtml(promo.title)}</span>
+                        ${promo.caption ? `<div class="text-[9px] text-gray-500 truncate">${escapeHtml(promo.caption.substring(0, 50))}</div>` : ''}
+                    </div>
+                    <button onclick="sendPromoCommand('${promo.id}')" class="bg-pink-500 text-white text-[9px] px-2 py-1 rounded">Enviar</button>
+                </div>
+            `;
+            
+            if (promo.type === 'pdf') {
+                pdfHtml += itemHtml;
+            } else {
+                imageHtml += itemHtml;
+            }
+        });
+        
+        $('#promo-pdf-items').html(pdfHtml || '<div class="text-center text-gray-400 text-xs py-2">No hay PDFs</div>');
+        $('#promo-image-items').html(imageHtml || '<div class="text-center text-gray-400 text-xs py-2">No hay imágenes</div>');
+    });
+}
+
+function insertPromoCommand(command) {
+    $('#message-input').val(command + ' ');
+    $('#message-input').focus();
+    $('#promo-suggestions').addClass('hidden');
+}
+
+
+function sendPromoCommand(promoId) {
+    if (!currentContactPhone) {
+        showToast('⚠️ Primero selecciona un chat', 'warning');
+        return;
+    }
+    
+    // Enviar solo el ID de la promoción, no todos los datos
+    $.ajax({
+        url: '/api/send-promo',
+        method: 'POST',
+        data: JSON.stringify({
+            phone: currentContactPhone,
+            promotion_id: promoId,
+            name: currentContactName
+        }),
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            if (response.success) {
+                showToast('🎉 Promoción enviada!', 'success');
+            } else {
+                showToast('❌ Error: ' + response.message, 'error');
+            }
+        },
+        error: function() {
+            showToast('❌ Error al enviar', 'error');
+        }
+    });
+}
+
+// Detectar comandos de promociones (para sugerencias)
+function showPromoSuggestions(matches, query) {
+    if (!matches || matches.length === 0) {
+        $('#promo-suggestions').addClass('hidden');
+        return;
+    }
+    
+    let html = '<div class="divide-y">';
+    matches.forEach(m => {
+        let preview = m.caption ? m.caption.substring(0, 50) : (m.type === 'pdf' ? '📄 Documento PDF' : '🖼️ Imagen');
+        html += `
+            <div onclick="selectPromoCommand(${m.id})" class="p-2 hover:bg-gray-100 cursor-pointer transition-colors">
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-pink-600 text-sm font-bold">${escapeHtml(m.command)}</span>
+                    <span class="text-xs text-gray-500">${escapeHtml(m.title)}</span>
+                </div>
+                <div class="text-[10px] text-gray-400 mt-1 truncate">${escapeHtml(preview)}</div>
+                <div class="text-[9px] text-gray-300 mt-0.5">${m.type === 'pdf' ? '📄 PDF' : '🖼️ Imagen'}</div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    $('#promo-suggestions').removeClass('hidden').html(html);
+    
+    // Posicionar correctamente
+    let input = $('#message-input');
+    let container = input.closest('.relative');
+    if (container.length) {
+        let offset = container.offset();
+        let inputHeight = input.outerHeight();
+        
+        $('#promo-suggestions').css({
+            position: 'fixed',
+            bottom: $(window).height() - offset.top + 10,
+            left: offset.left,
+            width: container.outerWidth(),
+            zIndex: 1002
+        });
+    }
+}
+
+function selectPromoCommand(promoId) {
+    $('#promo-suggestions').addClass('hidden');
+    sendPromoCommand(promoId);
+}
+function convertGoogleDriveUrl(url) {
+    // Detectar si es URL de Google Drive
+    const driveRegex = /drive\.google\.com\/file\/d\/([^\/]+)\/view/;
+    const match = url.match(driveRegex);
+    
+    if (match) {
+        const fileId = match[1];
+        // Usar URL completa del proxy
+        const baseUrl = window.location.origin; // http://109.199.110.100:8100
+        return `${baseUrl}/drive-proxy/${fileId}`;
+    }
+    return url;
+}
+
+// ========== GESTIÓN DE ARCHIVOS ==========
+
+let currentFileTab = 'pdf';
+
+function openFileManager() {
+    $('#modal-file-manager').removeClass('hidden');
+    loadFileList('pdf');
+}
+
+function closeFileManager() {
+    $('#modal-file-manager').addClass('hidden');
+}
+
+function showFileTab(type) {
+    currentFileTab = type;
+    if (type === 'pdf') {
+        $('#file-tab-pdf').addClass('border-b-2 border-blue-500 text-blue-600').removeClass('text-gray-500');
+        $('#file-tab-image').removeClass('border-b-2 border-blue-500 text-blue-600').addClass('text-gray-500');
+    } else {
+        $('#file-tab-image').addClass('border-b-2 border-blue-500 text-blue-600').removeClass('text-gray-500');
+        $('#file-tab-pdf').removeClass('border-b-2 border-blue-500 text-blue-600').addClass('text-gray-500');
+    }
+    loadFileList(type);
+}
+
+function loadFileList(type) {
+    $.get('/files/list', function(files) {
+        const filtered = files.filter(f => {
+            if (type === 'pdf') return f.mime_type === 'application/pdf';
+            return f.mime_type.startsWith('image/');
+        });
+        
+        let html = '';
+        if (filtered.length === 0) {
+            html = '<div class="text-center text-gray-400 py-8">No hay archivos de este tipo</div>';
+        } else {
+            filtered.forEach(file => {
+                const usedIn = file.promotions ? file.promotions.length : 0;
+                html += `
+                    <div class="flex items-center justify-between bg-white border rounded-lg p-3">
+                        <div class="flex-1">
+                            <div class="font-bold text-gray-800">${escapeHtml(file.original_name)}</div>
+                            <div class="text-[10px] text-gray-500">${(file.size / 1024).toFixed(1)} KB | Usado en ${usedIn} promoción(es)</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="renameFile(${file.id}, '${escapeHtml(file.original_name)}')" class="text-blue-500 hover:text-blue-700 text-sm">✏️</button>
+                            <button onclick="deleteFile(${file.id})" class="text-red-500 hover:text-red-700 text-sm">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        $('#file-list-container').html(html);
+    });
+}
+
+function renameFile(id, currentName) {
+    const newName = prompt('Nuevo nombre del archivo:', currentName);
+    if (!newName || newName === currentName) return;
+    
+    $.ajax({
+        url: `/files/rename/${id}`,
+        method: 'PUT',
+        data: { name: newName, _token: $('meta[name="csrf-token"]').attr('content') },
+        success: function() {
+            showToast('✅ Archivo renombrado', 'success');
+            loadFileList(currentFileTab);
+            loadFileSelector();
+        },
+        error: function() {
+            showToast('Error al renombrar', 'error');
+        }
+    });
+}
+
+function showUploadFileForm() {
+    let type = currentFileTab === 'pdf' ? 'pdf' : 'image';
+    $('#upload-file-type').val(type);
+    $('#upload-file-input').val('');
+    
+    // Validar tipo de archivo en el input
+    if (type === 'pdf') {
+        $('#upload-file-input').attr('accept', '.pdf');
+    } else {
+        $('#upload-file-input').attr('accept', 'image/*');
+    }
+    
+    $('#modal-upload-file').removeClass('hidden');
+}
+
+function closeUploadModal() {
+    $('#modal-upload-file').addClass('hidden');
+}
+
+function uploadFile() {
+    const fileInput = $('#upload-file-input')[0];
+    const type = $('#upload-file-type').val();
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showToast('Selecciona un archivo', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('type', type);
+    formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+    
+    showToast('Subiendo archivo...', 'info');
+    
+    $.ajax({
+        url: '/files/upload',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(fileData) {
+            showToast('✅ Archivo subido', 'success');
+            closeUploadModal();
+            
+            // Recargar todas las listas
+            loadFileList('pdf');
+            loadFileList('image');
+            loadFileSelector(fileData.id); // Pasar el ID del nuevo archivo
+        },
+        error: function(xhr) {
+            console.error('Error al subir:', xhr);
+            showToast('❌ Error al subir archivo', 'error');
+        }
+    });
+}
+function deleteFile(id) {
+    if (!confirm('¿Eliminar este archivo? Se eliminará de todas las promociones que lo usen.')) return;
+    
+    $.ajax({
+        url: `/files/delete/${id}`,
+        method: 'DELETE',
+        data: { _token: $('meta[name="csrf-token"]').attr('content') },
+        success: function() {
+            showToast('🗑️ Archivo eliminado', 'success');
+            loadFileList(currentFileTab);
+            loadFileSelector(); // Recargar selector también
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.message || 'Error al eliminar';
+            showToast('❌ ' + msg, 'error');
+        }
+    });
+}
+function loadFileSelector(selectedId = null) {
+    console.log('Cargando selector de archivos...');
+    
+    $.get('/files/list')
+        .done(function(files) {
+            console.log('Archivos recibidos:', files.length);
+            
+            let options = '<option value="">Seleccionar archivo</option>';
+            
+            if (files && files.length > 0) {
+                files.forEach(file => {
+                    const icon = file.mime_type === 'application/pdf' ? '📄' : '🖼️';
+                    options += `<option value="${file.id}" ${selectedId == file.id ? 'selected' : ''}>${icon} ${escapeHtml(file.original_name)}</option>`;
+                });
+            } else {
+                options += '<option value="" disabled>⚠️ No hay archivos. Sube uno desde 📁</option>';
+            }
+            
+            $('#promo-file-select').html(options);
+            console.log('Selector actualizado');
+        })
+        .fail(function(xhr) {
+            console.error('Error al cargar archivos:', xhr);
+            $('#promo-file-select').html('<option value="">❌ Error cargando archivos</option>');
+        });
+}
 // ========== FUNCIONES GLOBALES (para onclick en HTML) ==========
+window.openPromoConfig = openPromoConfig;
+window.closePromoConfig = closePromoConfig;
+window.showPromoTab = showPromoTab;
+window.openPromoForm = openPromoForm;
+window.closePromoForm = closePromoForm;
+window.savePromotion = savePromotion;
+window.editPromotion = editPromotion;
+window.deletePromotion = deletePromotion;
+window.insertPromoCommand = insertPromoCommand;
+window.sendPromoCommand = sendPromoCommand;
 window.openCmdConfigAndClose = openCmdConfigAndClose;
 window.openCmdConfig = openCmdConfig;
 window.closeCmdConfig = closeCmdConfig;

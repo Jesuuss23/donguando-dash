@@ -12,6 +12,9 @@
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)/$ /$1 [L,R=301]
+    php_value upload_max_filesize 100M
+php_value post_max_size 100M
+php_value max_execution_time 300
 
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d

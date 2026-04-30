@@ -151,7 +151,13 @@
             <!-- Sugerencias de comandos (aparece al escribir /palabra) -->
             <div id="command-suggestions" class="hidden"></div>
         </div>
-        
+        <!-- Botón 🎉 para abrir configuración de promociones -->
+<button onclick="openPromoConfig()" id="btn-promo-config" class="hidden p-2 text-pink-500 hover:bg-pink-100 rounded-full transition-colors" title="Configurar promociones">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="12" r="3" stroke-width="2"/>
+    </svg>
+</button>
         <!-- Botón rayo para abrir configuración -->
         <button onclick="openCmdConfig()" id="btn-cmd-config" class="hidden p-2 text-yellow-500 hover:bg-yellow-100 rounded-full transition-colors" title="Configurar comandos rápidos">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,6 +170,7 @@
         </button>
     </div>
 </div>
+
     
     <!-- Panel de respuestas rápidas (oculto por defecto) -->
     <div id="quick-replies-panel" class="hidden border-t bg-gray-50 max-h-64 overflow-y-auto">
@@ -186,6 +193,8 @@
     
     <!-- Sugerencias de comandos (aparece al escribir /) -->
     <div id="command-suggestions" class="hidden absolute bottom-full left-0 right-0 bg-white border rounded-t-lg shadow-lg max-h-48 overflow-y-auto z-50"></div>
+    <!-- Sugerencias de promociones (aparece al escribir /promo...) -->
+<div id="promo-suggestions" class="hidden bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto z-50" style="position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 5px;"></div>
 </div>
    </div> 
 
@@ -503,6 +512,136 @@
         <div class="flex gap-2 pt-2">
             <button onclick="closeCmdCommandForm()" class="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
             <button onclick="saveCmdCommand()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-bold">Guardar</button>
+        </div>
+    </div>
+</div>
+<!-- Modal Configuración de Promociones (🎉) -->
+<div id="modal-promo-config" class="hidden fixed inset-0 z-[120] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="p-4 bg-gradient-to-r from-pink-600 to-rose-600 text-white flex justify-between items-center rounded-t-2xl">
+            <h3 class="text-lg font-black uppercase">🎉 Configurar Promociones</h3>
+            <button onclick="closePromoConfig()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+        </div>
+        
+        <div class="flex border-b">
+            <button onclick="showPromoTab('pdf')" id="promo-tab-pdf" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors border-b-2 border-pink-500 text-pink-600">
+                📄 PDF
+            </button>
+            <button onclick="showPromoTab('image')" id="promo-tab-image" class="flex-1 py-2 font-bold text-sm hover:bg-gray-100 transition-colors text-gray-500">
+                🖼️ Imágenes
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4">
+            <!-- Panel de PDF -->
+            <div id="promo-pdf-panel">
+                <div class="flex gap-2 mb-4">
+                    <button onclick="openPromoForm('pdf')" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg font-bold text-sm">
+                        + Agregar PDF
+                    </button>
+                </div>
+                <div id="promo-pdf-list" class="space-y-2">
+                    <div class="text-center text-gray-400 py-4">Cargando PDFs...</div>
+                </div>
+            </div>
+            
+            <!-- Panel de Imágenes -->
+            <div id="promo-image-panel" class="hidden">
+                <div class="flex gap-2 mb-4">
+                    <button onclick="openPromoForm('image')" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg font-bold text-sm">
+                        + Agregar Imagen
+                    </button>
+                </div>
+                <div id="promo-image-list" class="space-y-2">
+                    <div class="text-center text-gray-400 py-4">Cargando imágenes...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t bg-gray-50 flex justify-end">
+            <button onclick="closePromoConfig()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para crear/editar comando -->
+<div id="modal-promo-form" class="hidden fixed inset-0 z-[130] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
+        <h3 class="text-xl font-black text-gray-800 mb-4 uppercase" id="promo-form-title">Nuevo Comando</h3>
+        <input type="hidden" id="promo-edit-id">
+        <input type="hidden" id="promo-type">
+        
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Comando (ej: /promo1)</label>
+            <input type="text" id="promo-command" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="/comando">
+        </div>
+        
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Título</label>
+            <input type="text" id="promo-title" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Título visible">
+        </div>
+        
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Archivo</label>
+            <div class="flex gap-2">
+                <select id="promo-file-select" class="flex-1 border rounded-lg px-3 py-2 text-sm">
+                    <option value="">Seleccionar archivo</option>
+                </select>
+                <button type="button" onclick="openFileManager()" class="bg-gray-600 text-white px-3 py-2 rounded-lg text-sm">📁</button>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Leyenda (opcional)</label>
+            <textarea id="promo-caption" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Mensaje que acompañará al archivo..."></textarea>
+        </div>
+        
+        <div class="flex gap-2 pt-2">
+            <button onclick="closePromoForm()" class="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
+            <button onclick="savePromotion()" class="flex-1 bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg font-bold">Guardar</button>
+        </div>
+    </div>
+</div>
+<!-- Modal Gestión de Archivos -->
+<div id="modal-file-manager" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+        <div class="p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white flex justify-between items-center rounded-t-2xl">
+            <h3 class="text-lg font-black uppercase">📁 Gestión de Archivos</h3>
+            <button onclick="closeFileManager()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+        </div>
+        
+        <div class="flex border-b">
+            <button onclick="showFileTab('pdf')" id="file-tab-pdf" class="flex-1 py-2 font-bold text-sm border-b-2 border-blue-500 text-blue-600">📄 PDF</button>
+            <button onclick="showFileTab('image')" id="file-tab-image" class="flex-1 py-2 font-bold text-sm text-gray-500">🖼️ Imágenes</button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4">
+            <div class="flex justify-end mb-4">
+                <button onclick="showUploadFileForm()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">+ Subir archivo</button>
+            </div>
+            <div id="file-list-container" class="space-y-2"></div>
+        </div>
+        
+        <div class="p-4 border-t bg-gray-50 flex justify-end">
+            <button onclick="closeFileManager()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para subir archivo (simple) -->
+<div id="modal-upload-file" class="hidden fixed inset-0 z-[210] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
+        <h3 class="text-xl font-black text-gray-800 mb-4 uppercase">📤 Subir Archivo</h3>
+        <input type="hidden" id="upload-file-type">
+        
+        <div class="mb-4">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Seleccionar archivo</label>
+            <input type="file" id="upload-file-input" accept=".pdf,.jpg,.jpeg,.png" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        
+        <div class="flex gap-2">
+            <button onclick="closeUploadModal()" class="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
+            <button onclick="uploadFile()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold">Subir</button>
         </div>
     </div>
 </div>
