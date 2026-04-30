@@ -199,6 +199,7 @@ function renderTags(contactId) {
                           style="background-color: ${tag.color}20; color: ${tag.color}; border-color: ${tag.color}">
                         ${tag.name}
                         <button onclick="removeTag(${contactId}, ${tag.id})" class="ml-1 hover:text-black font-bold" title="Eliminar etiqueta">×</button>
+                        
                     </span>
                 `);
             });
@@ -245,9 +246,6 @@ function showTagModal() {
                     <div class="flex gap-2">
                         <button onclick="closeTagSelector()" class="flex-1 px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cancelar</button>
                         <button onclick="confirmAddTag()" class="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg font-bold">Agregar</button>
-                    </div>
-                    <div class="mt-3 text-center">
-                        <button onclick="openTagsManager()" class="text-xs text-blue-500 hover:underline">⚙️ Administrar todas las etiquetas</button>
                     </div>
                 </div>
             </div>
@@ -576,19 +574,38 @@ function loadQuickMessages(productName, productPrice) {
         let list = $('#quick-messages-list');
         list.empty();
         
+        if (responses.length === 0) {
+            list.html('<div class="text-center text-gray-400 text-xs py-4">No hay mensajes configurados</div>');
+            return;
+        }
+        
         responses.forEach(res => {
             let msgFinal = res.body
                 .replace(/{producto}/g, productName)
                 .replace(/{precio}/g, productPrice);
             
             list.append(`
-                <div class="mb-3 p-3 bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <div class="text-[10px] font-black text-blue-500 uppercase mb-1">${res.title}</div>
-                    <div class="text-xs text-gray-600 mb-3">${msgFinal}</div>
-                    <button onclick="sendToN8N('${msgFinal.replace(/'/g, "\\'")}')" 
-                            class="w-full bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold py-1 px-2 rounded-lg">
-                        🚀 Enviar Mensaje
-                    </button>
+                <div class="mb-3 p-3 bg-white border border-gray-200 rounded-xl shadow-sm group hover:shadow-md transition-shadow">
+                    <div class="text-[10px] font-black text-blue-500 uppercase mb-1">${escapeHtml(res.title)}</div>
+                    <div class="text-xs text-gray-600 leading-snug mb-3">${escapeHtml(msgFinal)}</div>
+                    <div class="flex gap-2">
+                        <button onclick="sendToN8N('${msgFinal.replace(/'/g, "\\'")}')" 
+                                class="flex-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold py-1 px-2 rounded-lg transition-all flex items-center justify-center gap-1">
+                            <span>🚀 Enviar</span>
+                        </button>
+                        <button onclick="editTemplate(${res.id}, '${escapeHtml(res.title)}', '${escapeHtml(res.body)}')" 
+                                class="bg-blue-100 hover:bg-blue-200 text-blue-600 p-1 rounded-lg transition-colors" title="Editar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button onclick="deleteTemplate(${res.id})" 
+                                class="bg-red-50 hover:bg-red-100 text-red-500 p-1 rounded-lg transition-colors" title="Eliminar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             `);
         });
@@ -711,17 +728,21 @@ function insertTag(tag) {
 }
 
 function deleteTemplate(id) {
-    if (confirm("¿Borrar esta plantilla?")) {
+    if (confirm("¿Estás seguro de que quieres eliminar esta plantilla?")) {
         $.ajax({
             url: `/quick-responses/delete/${id}`,
             method: 'DELETE',
             data: { _token: $('meta[name="csrf-token"]').attr('content') },
             success: function() {
+                showToast('🗑️ Plantilla eliminada', 'success');
+                // Recargar mensajes si hay producto seleccionado
                 let currentP = $('#selected-product-name').text();
                 if (currentP && currentP !== "") {
                     loadQuickMessages(currentP, currentSelectedPrice);
                 }
-                showToast('Plantilla eliminada', 'success');
+            },
+            error: function() {
+                showToast('Error al eliminar', 'error');
             }
         });
     }
@@ -1590,36 +1611,23 @@ function openPromoForm(type) {
     $('#promo-form-title').text(type === 'pdf' ? '📄 Nuevo Comando PDF' : '🖼️ Nuevo Comando Imagen');
     $('#modal-promo-form').removeClass('hidden');
     
-    // Forzar recarga del selector
-    loadFileSelector();
-    
-    // También refrescar la lista de archivos en el manager
-    if (currentFileTab === 'pdf') {
-        loadFileList('pdf');
-    } else {
-        loadFileList('image');
-    }
+    // Cargar selector filtrado por tipo
+    loadFileSelectorFiltered(type);
 }
 
 function closePromoForm() {
     $('#modal-promo-form').addClass('hidden');
 }
-
-function savePromotion() {
-     let data = {
+function doSavePromotion() {
+    let data = {
         id: $('#promo-edit-id').val(),
         type: $('#promo-type').val(),
         command: $('#promo-command').val(),
         title: $('#promo-title').val(),
+        file_id: $('#promo-file-select').val(),
         caption: $('#promo-caption').val(),
         _token: $('meta[name="csrf-token"]').attr('content')
     };
-    
-    // Solo agregar file_id si tiene valor
-    let fileId = $('#promo-file-select').val();
-    if (fileId) {
-        data.file_id = fileId;
-    }
     
     if (!data.command.startsWith('/')) {
         data.command = '/' + data.command;
@@ -1636,11 +1644,41 @@ function savePromotion() {
             loadPromotions('image');
             loadPromotionsPanel();
         },
-        error: function() {
-            showToast('Error al guardar', 'error');
+        error: function(xhr) {
+            let msg = xhr.responseJSON?.message || 'Error al guardar';
+            showToast('❌ ' + msg, 'error');
         }
     });
 }
+function savePromotion() {
+    let type = $('#promo-type').val();
+    let fileId = $('#promo-file-select').val();
+    let fileName = $('#promo-file-select option:selected').text();
+    
+    // Verificar que el archivo seleccionado coincide con el tipo
+    if (fileId) {
+        $.get(`/files/${fileId}`, function(file) {
+            if (type === 'pdf' && file.mime_type !== 'application/pdf') {
+                showToast('❌ El archivo seleccionado no es un PDF', 'error');
+                return;
+            }
+            if (type === 'image' && !file.mime_type.startsWith('image/')) {
+                showToast('❌ El archivo seleccionado no es una imagen', 'error');
+                return;
+            }
+            
+            // Proceder a guardar
+            doSavePromotion();
+        }).fail(function() {
+            showToast('Error al verificar el archivo', 'error');
+        });
+    } else {
+        showToast('Selecciona un archivo', 'warning');
+    }
+    loadFileList('pdf');
+loadFileList('image');
+}
+
 
 function editPromotion(id) {
     $.get(`/promotions/${id}`, function(promo) {
@@ -1670,6 +1708,8 @@ function deletePromotion(id) {
             loadPromotionsPanel();
         }
     });
+    loadFileList('pdf');
+loadFileList('image');
 }
 
 function loadPromotionsPanel() {
@@ -1814,7 +1854,20 @@ function convertGoogleDriveUrl(url) {
 let currentFileTab = 'pdf';
 
 function openFileManager() {
+    // Reiniciar la pestaña activa a PDF por defecto
+    currentFileTab = 'pdf';
+    
+    // Resetear estilos de las pestañas
+    $('#file-tab-pdf').addClass('border-b-2 border-blue-500 text-blue-600').removeClass('text-gray-500');
+    $('#file-tab-image').removeClass('border-b-2 border-blue-500 text-blue-600').addClass('text-gray-500');
+    
+    // Limpiar el contenedor antes de cargar
+    $('#file-list-container').html('<div class="text-center text-gray-400 py-8">Cargando archivos...</div>');
+    
+    // Abrir modal
     $('#modal-file-manager').removeClass('hidden');
+    
+    // Cargar archivos
     loadFileList('pdf');
 }
 
@@ -1823,7 +1876,11 @@ function closeFileManager() {
 }
 
 function showFileTab(type) {
+    console.log('Cambiando a pestaña:', type);
+    
     currentFileTab = type;
+    
+    // Actualizar estilos de las pestañas
     if (type === 'pdf') {
         $('#file-tab-pdf').addClass('border-b-2 border-blue-500 text-blue-600').removeClass('text-gray-500');
         $('#file-tab-image').removeClass('border-b-2 border-blue-500 text-blue-600').addClass('text-gray-500');
@@ -1831,38 +1888,64 @@ function showFileTab(type) {
         $('#file-tab-image').addClass('border-b-2 border-blue-500 text-blue-600').removeClass('text-gray-500');
         $('#file-tab-pdf').removeClass('border-b-2 border-blue-500 text-blue-600').addClass('text-gray-500');
     }
+    
+    // Limpiar contenedor
+    $('#file-list-container').html('<div class="text-center text-gray-400 py-8">Cargando archivos...</div>');
+    
+    // Cargar archivos del tipo seleccionado
     loadFileList(type);
 }
 
 function loadFileList(type) {
-    $.get('/files/list', function(files) {
-        const filtered = files.filter(f => {
-            if (type === 'pdf') return f.mime_type === 'application/pdf';
-            return f.mime_type.startsWith('image/');
-        });
-        
-        let html = '';
-        if (filtered.length === 0) {
-            html = '<div class="text-center text-gray-400 py-8">No hay archivos de este tipo</div>';
-        } else {
-            filtered.forEach(file => {
-                const usedIn = file.promotions ? file.promotions.length : 0;
-                html += `
-                    <div class="flex items-center justify-between bg-white border rounded-lg p-3">
-                        <div class="flex-1">
-                            <div class="font-bold text-gray-800">${escapeHtml(file.original_name)}</div>
-                            <div class="text-[10px] text-gray-500">${(file.size / 1024).toFixed(1)} KB | Usado en ${usedIn} promoción(es)</div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="renameFile(${file.id}, '${escapeHtml(file.original_name)}')" class="text-blue-500 hover:text-blue-700 text-sm">✏️</button>
-                            <button onclick="deleteFile(${file.id})" class="text-red-500 hover:text-red-700 text-sm">🗑️</button>
-                        </div>
-                    </div>
-                `;
+    console.log('📁 Cargando archivos de tipo:', type);
+    
+    $.get('/files/list')
+        .done(function(files) {
+            console.log('📊 Archivos totales en BD:', files.length);
+            
+            // Filtrar según el tipo seleccionado
+            let filtered = files.filter(f => {
+                if (type === 'pdf') {
+                    return f.mime_type === 'application/pdf';
+                } else {
+                    return f.mime_type.startsWith('image/');
+                }
             });
-        }
-        $('#file-list-container').html(html);
-    });
+            
+            console.log('✅ Archivos filtrados para', type, ':', filtered.length);
+            
+            let html = '';
+            if (filtered.length === 0) {
+                html = '<div class="text-center text-gray-400 py-8">No hay archivos de este tipo</div>';
+            } else {
+                filtered.forEach(file => {
+                    // Contar promociones que usan este archivo
+                    const usedIn = file.promotions ? file.promotions.length : 0;
+                    const usedText = usedIn === 1 ? 'promoción' : 'promociones';
+                    
+                    html += `
+                        <div class="flex items-center justify-between bg-white border rounded-lg p-3 mb-2 hover:shadow-md transition-shadow">
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">${escapeHtml(file.original_name)}</div>
+                                <div class="text-[10px] text-gray-500">${(file.size / 1024).toFixed(1)} KB</div>
+                                <div class="text-[9px] ${usedIn > 0 ? 'text-green-600' : 'text-gray-400'} mt-1">
+                                    📌 Usado en ${usedIn} ${usedText}
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="renameFile(${file.id}, '${escapeHtml(file.original_name)}')" class="text-blue-500 hover:text-blue-700 text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors" title="Renombrar">✏️</button>
+                                <button onclick="deleteFile(${file.id})" class="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded hover:bg-red-50 transition-colors" title="Eliminar">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            $('#file-list-container').html(html);
+        })
+        .fail(function(xhr) {
+            console.error('❌ Error al cargar archivos:', xhr);
+            $('#file-list-container').html('<div class="text-center text-red-500 py-4">Error al cargar archivos</div>');
+        });
 }
 
 function renameFile(id, currentName) {
@@ -1958,26 +2041,33 @@ function deleteFile(id) {
         }
     });
 }
-function loadFileSelector(selectedId = null) {
-    console.log('Cargando selector de archivos...');
+function loadFileSelectorFiltered(type, selectedId = null) {
+    console.log('Cargando selector filtrado por tipo:', type);
     
     $.get('/files/list')
         .done(function(files) {
-            console.log('Archivos recibidos:', files.length);
+            // Filtrar según el tipo
+            let filtered = files.filter(f => {
+                if (type === 'pdf') {
+                    return f.mime_type === 'application/pdf';
+                } else {
+                    return f.mime_type.startsWith('image/');
+                }
+            });
             
             let options = '<option value="">Seleccionar archivo</option>';
             
-            if (files && files.length > 0) {
-                files.forEach(file => {
+            if (filtered && filtered.length > 0) {
+                filtered.forEach(file => {
                     const icon = file.mime_type === 'application/pdf' ? '📄' : '🖼️';
                     options += `<option value="${file.id}" ${selectedId == file.id ? 'selected' : ''}>${icon} ${escapeHtml(file.original_name)}</option>`;
                 });
             } else {
-                options += '<option value="" disabled>⚠️ No hay archivos. Sube uno desde 📁</option>';
+                options += '<option value="" disabled>⚠️ No hay archivos de este tipo. Sube uno desde 📁</option>';
             }
             
             $('#promo-file-select').html(options);
-            console.log('Selector actualizado');
+            console.log('Selector actualizado con', filtered.length, 'archivos');
         })
         .fail(function(xhr) {
             console.error('Error al cargar archivos:', xhr);

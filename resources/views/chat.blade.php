@@ -41,7 +41,7 @@
 </button>
 <!-- Filtros de etiquetas -->
 <div id="tag-filters-container" class="p-3 border-b bg-gray-50 hidden">
-    <p class="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">📌 FILTRAR POR ETIQUETA</p>
+    <p class="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">📌 FILTRAR POR ETIQUETA<span><button onclick="openTagsManager()" class="text-xs text-blue-500 hover:underline">⚙️Administrar</button></span></p>
     <div id="tag-filters-list" class="flex flex-wrap gap-1">
         <button onclick="filterByTag('')" class="text-[9px] px-2 py-1 rounded-full bg-gray-200 hover:bg-gray-300 transition-all">
             Todos
@@ -198,32 +198,36 @@
 </div>
    </div> 
 
-    <!-- TERCERA COLUMNA: Panel de Ventas -->
-    <div class="w-1/4 flex flex-col bg-white p-4">
-        <h3 class="text-sm font-black text-gray-400 uppercase mb-4 tracking-widest">⚡ Panel de Ventas</h3>
-        
-        <div class="mb-6">
-            <input type="text" id="chat-product-search" placeholder="Buscar carne..." 
-                   class="w-full text-xs border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-500">
-            
-            <div id="chat-product-results" class="mt-2 space-y-2 max-h-48 overflow-y-auto">
-                <!-- Resultados de búsqueda se insertan aquí -->
-            </div>
+<!-- TERCERA COLUMNA: Panel de Ventas -->
+<div class="w-1/4 flex flex-col bg-white p-4 h-full overflow-hidden">
+    <h3 class="text-sm font-black text-gray-400 uppercase mb-4 tracking-widest flex-shrink-0">⚡ Panel de Ventas</h3>
+    
+    <div class="mb-4 flex-shrink-0">
+        <input type="text" id="chat-product-search" placeholder="Buscar carne..." 
+               class="w-full text-xs border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-500">
+        <div id="chat-product-results" class="mt-2 space-y-2 max-h-48 overflow-y-auto">
+            <!-- Resultados de búsqueda -->
         </div>
+    </div>
 
-        <hr class="mb-4">
+    <hr class="mb-4 flex-shrink-0">
 
+    <!-- Contenedor con scroll para mensajes -->
+    <div class="flex-1 overflow-y-auto">
         <div id="quick-messages-area" class="hidden">
-            <h4 class="text-[10px] font-bold text-gray-400 mb-2 uppercase">Mensajes para: <span id="selected-product-name" class="text-red-600"></span></h4>
-            <div id="quick-messages-list" class="space-y-2">
+            <h4 class="text-[10px] font-bold text-gray-400 mb-2 uppercase sticky top-0 bg-white py-1">
+                Mensajes para: <span id="selected-product-name" class="text-red-600"></span>
+            </h4>
+            <div id="quick-messages-list" class="space-y-3 pb-4">
                 <!-- Mensajes rápidos se insertan aquí -->
             </div>
             
-            <button onclick="openConfigQuickMessages()" class="mt-4 text-[10px] text-blue-500 hover:underline w-full text-center font-bold">
+            <button onclick="openConfigQuickMessages()" class="mt-4 text-[10px] text-blue-500 hover:underline w-full text-center font-bold sticky bottom-0 bg-white py-2">
                 ⚙️ Editar Mensajes Rápidos
             </button>
         </div>
     </div>
+</div>
 
     <!-- Panel de Pedido (flotante) -->
     <div id="order-panel" class="hidden absolute right-0 top-0 h-full w-72 bg-yellow-50 border-l p-4 shadow-xl z-40">
@@ -537,7 +541,7 @@
             <div id="promo-pdf-panel">
                 <div class="flex gap-2 mb-4">
                     <button onclick="openPromoForm('pdf')" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg font-bold text-sm">
-                        + Agregar PDF
+                        + Comando PDF
                     </button>
                 </div>
                 <div id="promo-pdf-list" class="space-y-2">
@@ -549,7 +553,7 @@
             <div id="promo-image-panel" class="hidden">
                 <div class="flex gap-2 mb-4">
                     <button onclick="openPromoForm('image')" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg font-bold text-sm">
-                        + Agregar Imagen
+                        + Comando Imagen
                     </button>
                 </div>
                 <div id="promo-image-list" class="space-y-2">
@@ -559,6 +563,7 @@
         </div>
         
         <div class="p-4 border-t bg-gray-50 flex justify-end">
+            <button type="button" onclick="openFileManager()" class="bg-gray-600 text-white px-3 py-2 rounded-lg text-sm ">Gestor de archivos PDF/Imagenes 📁</button>
             <button onclick="closePromoConfig()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cerrar</button>
         </div>
     </div>

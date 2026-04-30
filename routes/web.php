@@ -507,7 +507,7 @@ Route::post('/files/upload', function (Request $request) {
 
 // Listar archivos (para el selector)
 Route::get('/files/list', function () {
-    return File::orderBy('created_at', 'desc')->get();
+    return File::with('promotions')->orderBy('created_at', 'desc')->get();
 });
 
 
@@ -660,6 +660,9 @@ Route::put('/files/rename/{id}', function ($id, Request $request) {
     $file->save();
     
     return response()->json(['success' => true]);
+});
+Route::get('/files/{id}', function ($id) {
+    return File::findOrFail($id);
 });
 // Exportar contactos a Excel
 Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');

@@ -362,3 +362,38 @@ tbody tr:hover {
         transform: translateY(0);
     }
 }
+/* Panel de Ventas - Scroll suave */
+#quick-messages-list {
+    scrollbar-width: thin;
+}
+
+#quick-messages-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+#quick-messages-list::-webkit-scrollbar-track {
+    background: #e5e7eb;
+    border-radius: 4px;
+}
+
+#quick-messages-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+#quick-messages-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Sticky header */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+}
+
+/* Animaciones para botones */
+.group:hover .group-hover\:opacity-100 {
+    opacity: 1;
+}
