@@ -1248,11 +1248,16 @@ function deleteCmdCategory(id) {
 
 function loadCmdCategorySelect() {
     $.get('/cmd/categories', function(categories) {
-        let options = '<option value="">Seleccionar categoría</option>';
+        let options = '<option value="">Todas las categorías</option>';
         categories.forEach(cat => {
             options += `<option value="${cat.id}">${cat.icon || '📁'} ${cat.name}</option>`;
         });
-        $('#cmd-filter-category, #cmd-edit-category').html(options);
+        $('#cmd-filter-category, #edit-cmd-category').html(options);
+        
+        // Agregar evento change para filtrar automáticamente
+        $('#cmd-filter-category').off('change').on('change', function() {
+            loadCmdCommands();
+        });
     });
 }
 
@@ -1260,28 +1265,35 @@ function loadCmdCommands() {
     let categoryId = $('#cmd-filter-category').val();
     let url = categoryId ? `/cmd/commands?category=${categoryId}` : '/cmd/commands';
     
+    console.log('Cargando comandos con filtro:', categoryId || 'todas');
+    
     $.get(url, function(commands) {
         let html = '<div class="space-y-2">';
-        commands.forEach(cmd => {
-            html += `
-                <div class="flex items-center justify-between bg-white border rounded-lg p-3 hover:shadow-md">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            ${cmd.command ? `<span class="text-[10px] font-mono bg-gray-100 px-2 py-0.5 rounded-full text-green-600">${cmd.command}</span>` : ''}
-                            <span class="font-bold text-gray-800">${escapeHtml(cmd.title)}</span>
+        
+        if (commands.length === 0) {
+            html = '<div class="text-center text-gray-400 py-4">No hay comandos en esta categoría</div>';
+        } else {
+            commands.forEach(cmd => {
+                html += `
+                    <div class="flex items-center justify-between bg-white border rounded-lg p-3 hover:shadow-md transition-shadow">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                ${cmd.command ? `<span class="text-[10px] font-mono bg-gray-100 px-2 py-0.5 rounded-full text-green-600">${cmd.command}</span>` : ''}
+                                <span class="font-bold text-gray-800">${escapeHtml(cmd.title)}</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1 truncate">${escapeHtml(cmd.body.substring(0, 80))}</div>
+                            <div class="text-[9px] text-gray-400 mt-1">Categoría: ${cmd.category ? cmd.category.name : 'Sin categoría'}</div>
                         </div>
-                        <div class="text-xs text-gray-500 mt-1 truncate">${escapeHtml(cmd.body.substring(0, 80))}</div>
-                        <div class="text-[9px] text-gray-400 mt-1">Categoría: ${cmd.category ? cmd.category.name : 'Sin categoría'}</div>
+                        <div class="flex gap-1">
+                            <button onclick="editCmdCommand(${cmd.id})" class="text-blue-500 hover:text-blue-700 px-2 py-1 text-sm">✏️</button>
+                            <button onclick="deleteCmdCommand(${cmd.id})" class="text-red-500 hover:text-red-700 px-2 py-1 text-sm">🗑️</button>
+                        </div>
                     </div>
-                    <div class="flex gap-1">
-                        <button onclick="editCmdCommand(${cmd.id})" class="text-blue-500 hover:text-blue-700 px-2 py-1 text-sm">✏️</button>
-                        <button onclick="deleteCmdCommand(${cmd.id})" class="text-red-500 hover:text-red-700 px-2 py-1 text-sm">🗑️</button>
-                    </div>
-                </div>
-            `;
-        });
+                `;
+            });
+        }
         html += '</div>';
-        $('#cmd-commands-list').html(html || '<div class="text-center text-gray-400 py-4">No hay comandos creados</div>');
+        $('#cmd-commands-list').html(html);
     });
 }
 
@@ -1464,14 +1476,14 @@ function setupCommandDetection() {
         let value = $(this).val();
         
         if (value === '/') {
-            // Solo '/': mostrar panel de comandos rápidos
+            // Solo '/' -> mostrar panel con todos los comandos
             $('#quick-replies-panel').removeClass('hidden');
             $('#command-suggestions').addClass('hidden');
             $('#promo-suggestions').addClass('hidden');
-            loadQuickRepliesPanel();
+            loadUnifiedCommandsPanel();
         } 
         else if (value.startsWith('/')) {
-            // Buscar tanto en comandos normales como en promociones
+            // Buscar en ambos orígenes
             $.when(
                 $.get('/cmd/commands'),
                 $.get('/promotions')
@@ -1479,22 +1491,45 @@ function setupCommandDetection() {
                 let commands = cmdResponse[0];
                 let promotions = promoResponse[0];
                 
-                let cmdMatches = commands.filter(c => c.command && c.command.toLowerCase().startsWith(value.toLowerCase()));
-                let promoMatches = promotions.filter(p => p.command && p.command.toLowerCase().startsWith(value.toLowerCase()));
+                // Combinar y filtrar
+                let allMatches = [];
                 
-                // Priorizar promociones si hay coincidencias
-                if (promoMatches.length > 0) {
-                    $('#quick-replies-panel').addClass('hidden');
-                    $('#command-suggestions').addClass('hidden');
-                    showPromoSuggestions(promoMatches, value);
-                } 
-                else if (cmdMatches.length > 0) {
+                // Comandos de texto
+                commands.forEach(c => {
+                    if (c.command && c.command.toLowerCase().startsWith(value.toLowerCase())) {
+                        allMatches.push({
+                            type: 'text',
+                            id: c.id,
+                            command: c.command,
+                            title: c.title,
+                            preview: c.body.substring(0, 60),
+                            body: c.body
+                        });
+                    }
+                });
+                
+                // Promociones (PDF/imágenes)
+                promotions.forEach(p => {
+                    if (p.command && p.command.toLowerCase().startsWith(value.toLowerCase())) {
+                        allMatches.push({
+                            type: p.type, // 'pdf' o 'image'
+                            id: p.id,
+                            command: p.command,
+                            title: p.title,
+                            preview: p.caption ? p.caption.substring(0, 60) : (p.type === 'pdf' ? '📄 Documento PDF' : '🖼️ Imagen'),
+                            file_id: p.file_id
+                        });
+                    }
+                });
+                
+                // Ordenar por comando
+                allMatches.sort((a, b) => a.command.localeCompare(b.command));
+                
+                if (allMatches.length > 0) {
                     $('#quick-replies-panel').addClass('hidden');
                     $('#promo-suggestions').addClass('hidden');
-                    showCommandSuggestions(cmdMatches);
-                } 
-                else {
-                    $('#quick-replies-panel').addClass('hidden');
+                    showUnifiedSuggestions(allMatches, value);
+                } else {
                     $('#command-suggestions').addClass('hidden');
                     $('#promo-suggestions').addClass('hidden');
                 }
@@ -1514,7 +1549,229 @@ function setupCommandDetection() {
         }
     });
 }
-
+function showUnifiedSuggestions(matches, query) {
+    if (!matches || matches.length === 0) {
+        $('#command-suggestions').addClass('hidden');
+        return;
+    }
+    
+    let html = '<div class="divide-y">';
+    matches.forEach(m => {
+        let icon = '';
+        let badgeClass = '';
+        
+        if (m.type === 'text') {
+            icon = '💬';
+            badgeClass = 'bg-green-100 text-green-600';
+        } else if (m.type === 'pdf') {
+            icon = '📄';
+            badgeClass = 'bg-pink-100 text-pink-600';
+        } else if (m.type === 'image') {
+            icon = '🖼️';
+            badgeClass = 'bg-purple-100 text-purple-600';
+        }
+        
+        html += `
+            <div class="p-2 hover:bg-gray-100 cursor-pointer transition-colors" 
+                 onclick="executeUnifiedCommand(${JSON.stringify(m).replace(/"/g, '&quot;')})">
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-blue-600 text-sm font-bold">${escapeHtml(m.command)}</span>
+                    <span class="text-xs text-gray-500">${escapeHtml(m.title)}</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded-full ${badgeClass}">${icon} ${m.type === 'text' ? 'Texto' : (m.type === 'pdf' ? 'PDF' : 'Imagen')}</span>
+                </div>
+                <div class="text-[10px] text-gray-400 mt-1 truncate">${escapeHtml(m.preview)}</div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    $('#command-suggestions').removeClass('hidden').html(html);
+    
+    // Posicionar correctamente
+    let input = $('#message-input');
+    let container = input.closest('.relative');
+    if (container.length) {
+        let offset = container.offset();
+        $('#command-suggestions').css({
+            position: 'fixed',
+            bottom: $(window).height() - offset.top + 10,
+            left: offset.left,
+            width: container.outerWidth(),
+            zIndex: 1001
+        });
+    }
+}
+function executeUnifiedCommand(commandData) {
+    $('#command-suggestions').addClass('hidden');
+    $('#quick-replies-panel').addClass('hidden');
+    
+    if (commandData.type === 'text') {
+        sendQuickCommand(commandData.body);
+    } else {
+        sendPromoCommandById(commandData.id);
+    }
+}
+function selectUnifiedCommand(commandData) {
+    $('#command-suggestions').addClass('hidden');
+    $('#quick-replies-panel').addClass('hidden');
+    $('#promo-suggestions').addClass('hidden');
+    
+    if (commandData.type === 'text') {
+        // Enviar comando de texto
+        sendQuickCommand(commandData.body);
+    } else {
+        // Enviar promoción (PDF o imagen)
+        sendPromoCommandById(commandData.id);
+    }
+}
+function sendPromoCommandById(promoId) {
+    if (!currentContactPhone) {
+        showToast('⚠️ Primero selecciona un chat', 'warning');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/send-promo',
+        method: 'POST',
+        data: JSON.stringify({
+            phone: currentContactPhone,
+            promotion_id: promoId,
+            name: currentContactName
+        }),
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            if (response.success) {
+                showToast('🎉 Promoción enviada!', 'success');
+            } else {
+                showToast('❌ Error: ' + response.message, 'error');
+            }
+        },
+        error: function() {
+            showToast('❌ Error al enviar', 'error');
+        }
+    });
+}
+function loadUnifiedCommandsPanel() {
+    $.when(
+        $.get('/cmd/commands'),
+        $.get('/promotions')
+    ).done(function(cmdResponse, promoResponse) {
+        let commands = cmdResponse[0];
+        let promotions = promoResponse[0];
+        
+        // Agrupar comandos de texto por categoría
+        let textCommandsByCategory = {};
+        commands.forEach(c => {
+            if (c.command) {
+                let catName = c.category ? c.category.name : 'General';
+                let catIcon = c.category ? c.category.icon : '💬';
+                if (!textCommandsByCategory[catName]) {
+                    textCommandsByCategory[catName] = { icon: catIcon, items: [] };
+                }
+                textCommandsByCategory[catName].items.push({
+                    type: 'text',
+                    command: c.command,
+                    title: c.title,
+                    body: c.body
+                });
+            }
+        });
+        
+        // Agrupar promociones por tipo (PDF/Imagen)
+        let pdfPromos = [];
+        let imagePromos = [];
+        promotions.forEach(p => {
+            if (p.command) {
+                if (p.type === 'pdf') {
+                    pdfPromos.push({
+                        type: 'pdf',
+                        command: p.command,
+                        title: p.title,
+                        id: p.id
+                    });
+                } else {
+                    imagePromos.push({
+                        type: 'image',
+                        command: p.command,
+                        title: p.title,
+                        id: p.id
+                    });
+                }
+            }
+        });
+        
+        let html = '';
+        
+        // Sección de comandos de texto por categoría
+        for (let catName in textCommandsByCategory) {
+            let cat = textCommandsByCategory[catName];
+            html += `
+                <div class="p-2 border-b">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-sm">${cat.icon}</span>
+                        <span class="text-[10px] font-bold text-gray-600 uppercase">${catName}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+            `;
+            cat.items.forEach(item => {
+                html += `
+                    <button onclick="sendQuickCommand('${escapeHtml(item.body)}')" 
+                            class="text-[10px] px-3 py-1 rounded-full bg-white border border-gray-200 hover:border-green-400 hover:bg-green-50 transition-colors shadow-sm">
+                        ${escapeHtml(item.command)} ${escapeHtml(item.title)}
+                    </button>
+                `;
+            });
+            html += `</div></div>`;
+        }
+        
+        // Sección de PDFs
+        if (pdfPromos.length > 0) {
+            html += `
+                <div class="p-2 border-b">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-sm">📄</span>
+                        <span class="text-[10px] font-bold text-gray-600 uppercase">Documentos PDF</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+            `;
+            pdfPromos.forEach(p => {
+                html += `
+                    <button onclick="sendPromoCommand(${p.id})" 
+                            class="text-[10px] px-3 py-1 rounded-full bg-white border border-gray-200 hover:border-pink-400 hover:bg-pink-50 transition-colors shadow-sm">
+                        ${escapeHtml(p.command)} ${escapeHtml(p.title)}
+                    </button>
+                `;
+            });
+            html += `</div></div>`;
+        }
+        
+        // Sección de Imágenes
+        if (imagePromos.length > 0) {
+            html += `
+                <div class="p-2 border-b">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-sm">🖼️</span>
+                        <span class="text-[10px] font-bold text-gray-600 uppercase">Imágenes</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+            `;
+            imagePromos.forEach(p => {
+                html += `
+                    <button onclick="sendPromoCommand(${p.id})" 
+                            class="text-[10px] px-3 py-1 rounded-full bg-white border border-gray-200 hover:border-purple-400 hover:bg-purple-50 transition-colors shadow-sm">
+                        ${escapeHtml(p.command)} ${escapeHtml(p.title)}
+                    </button>
+                `;
+            });
+            html += `</div></div>`;
+        }
+        
+        $('#quick-replies-categories').html(html || '<div class="text-center text-gray-400 text-xs py-4">No hay comandos configurados</div>');
+    });
+}
 function selectCommand(command, body) {
     // Cerrar sugerencias
     $('#command-suggestions').addClass('hidden');

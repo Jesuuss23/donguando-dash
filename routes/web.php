@@ -348,7 +348,16 @@ Route::delete('/cmd/categories/{id}', function ($id) {
 });
 
 // Comandos (respuestas rápidas del sistema de comandos)
-Route::get('/cmd/commands', function () {
+Route::get('/cmd/commands', function (Request $request) {
+    $categoryId = $request->query('category');
+    
+    if ($categoryId) {
+        return App\Models\QuickCommand::with('category')
+            ->where('category_id', $categoryId)
+            ->orderBy('order')
+            ->get();
+    }
+    
     return App\Models\QuickCommand::with('category')->orderBy('order')->get();
 });
 
