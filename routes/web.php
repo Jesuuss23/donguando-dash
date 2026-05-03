@@ -316,9 +316,7 @@ Route::post('/api/sync-n8n', function (Request $request) {
     ]);
 });
 
-
-// ========== SISTEMA DE COMANDOS (NUEVO, TOTALMENTE INDEPENDIENTE) ==========
-
+// ========== SISTEMA DE COMANDOS==========
 // Categorías
 Route::get('/cmd/categories', function () {
     return App\Models\Category::with('quickCommands')->orderBy('order')->get();
@@ -390,11 +388,7 @@ Route::delete('/cmd/commands/delete/{id}', function ($id) {
     $command->delete();
     return response()->json(['status' => 'success']);
 });
-Route::get('/cmd/categories', function () {
-    $categories = Category::with('quickCommands')->orderBy('order')->get();
-    \Log::info('Categorías devueltas:', $categories->toArray());
-    return $categories;
-});
+
 // Obtener una categoría específica (para el delete)
 Route::get('/cmd/categories/{id}', function ($id) {
     return Category::with('quickCommands')->findOrFail($id);
@@ -460,66 +454,6 @@ Route::post('/api/send-promo', function (Request $request) {
         'message' => $response->successful() ? 'Promoción enviada' : 'Error en n8n'
     ]);
 });
-
-// ========== GESTIÓN DE ARCHIVOS PARA PROMOCIONES ==========
-
-// Subir archivo
-Route::post('/files/upload', function (Request $request) {
-    $request->validate([
-        'file' => 'required|file|max:95000', // 60MB en KB
-        'type' => 'required|in:pdf,image'
-    ]);
-    
-    // Validar tipo MIME según el tipo seleccionado
-    $uploadedFile = $request->file('file');
-    $mimeType = $uploadedFile->getMimeType();
-    
-    if ($request->type === 'pdf') {
-        if ($mimeType !== 'application/pdf') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Solo se permiten archivos PDF en esta sección.'
-            ], 400);
-        }
-    } else {
-        if (!str_starts_with($mimeType, 'image/')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Solo se permiten imágenes (JPEG, PNG, GIF) en esta sección.'
-            ], 400);
-        }
-    }
-    
-    $uploadedFile = $request->file('file');
-    $originalName = $uploadedFile->getClientOriginalName();
-    $mimeType = $uploadedFile->getMimeType();
-    $size = $uploadedFile->getSize();
-    
-    // Generar nombre único
-    $extension = $uploadedFile->getClientOriginalExtension();
-    $savedAs = uniqid() . '_' . time() . '.' . $extension;
-    $directory = $request->type === 'pdf' ? 'promotions/pdf' : 'promotions/images';
-    
-    // Guardar archivo
-    $path = $uploadedFile->storeAs($directory, $savedAs, 'public');
-    
-    // Guardar en BD
-    $file = File::create([
-        'original_name' => $originalName,
-        'saved_as' => $path,
-        'mime_type' => $mimeType,
-        'size' => $size
-    ]);
-    
-    return response()->json($file);
-});
-
-// Listar archivos (para el selector)
-Route::get('/files/list', function () {
-    return File::with('promotions')->orderBy('created_at', 'desc')->get();
-});
-
-
 // Actualizar promoción (ahora usa file_id)
 Route::post('/promotions/save', function (Request $request) {
     try {
@@ -592,6 +526,68 @@ Route::post('/promotions/save', function (Request $request) {
         ], 500);
     }
 });
+
+
+// ========== GESTIÓN DE ARCHIVOS PARA PROMOCIONES ==========
+
+// Subir archivo
+Route::post('/files/upload', function (Request $request) {
+    $request->validate([
+        'file' => 'required|file|max:95000', // 60MB en KB
+        'type' => 'required|in:pdf,image'
+    ]);
+    
+    // Validar tipo MIME según el tipo seleccionado
+    $uploadedFile = $request->file('file');
+    $mimeType = $uploadedFile->getMimeType();
+    
+    if ($request->type === 'pdf') {
+        if ($mimeType !== 'application/pdf') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se permiten archivos PDF en esta sección.'
+            ], 400);
+        }
+    } else {
+        if (!str_starts_with($mimeType, 'image/')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se permiten imágenes (JPEG, PNG, GIF) en esta sección.'
+            ], 400);
+        }
+    }
+    
+    $uploadedFile = $request->file('file');
+    $originalName = $uploadedFile->getClientOriginalName();
+    $mimeType = $uploadedFile->getMimeType();
+    $size = $uploadedFile->getSize();
+    
+    // Generar nombre único
+    $extension = $uploadedFile->getClientOriginalExtension();
+    $savedAs = uniqid() . '_' . time() . '.' . $extension;
+    $directory = $request->type === 'pdf' ? 'promotions/pdf' : 'promotions/images';
+    
+    // Guardar archivo
+    $path = $uploadedFile->storeAs($directory, $savedAs, 'public');
+    
+    // Guardar en BD
+    $file = File::create([
+        'original_name' => $originalName,
+        'saved_as' => $path,
+        'mime_type' => $mimeType,
+        'size' => $size
+    ]);
+    
+    return response()->json($file);
+});
+
+// Listar archivos (para el selector)
+Route::get('/files/list', function () {
+    return File::with('promotions')->orderBy('created_at', 'desc')->get();
+});
+
+
+
 Route::delete('/files/delete/{id}', function ($id) {
     try {
         \Log::info('=== ELIMINAR ARCHIVO ===', ['file_id' => $id]);
@@ -639,20 +635,6 @@ Route::delete('/files/delete/{id}', function ($id) {
         ], 500);
     }
 });
-// ========== API PARA N8N (OBTENER ARCHIVO POR ID) ==========
-Route::get('/api/file/{id}', function ($id) {
-    $file = File::findOrFail($id);
-    $fullPath = Storage::disk('public')->path($file->saved_as);
-    
-    if (!file_exists($fullPath)) {
-        return response()->json(['error' => 'File not found'], 404);
-    }
-    
-    return response()->file($fullPath, [
-        'Content-Type' => $file->mime_type,
-        'Content-Disposition' => 'inline; filename="' . $file->original_name . '"'
-    ]);
-});
 Route::put('/files/rename/{id}', function ($id, Request $request) {
     $file = File::findOrFail($id);
     
@@ -673,6 +655,22 @@ Route::put('/files/rename/{id}', function ($id, Request $request) {
 Route::get('/files/{id}', function ($id) {
     return File::findOrFail($id);
 });
+// ========== API PARA N8N (OBTENER ARCHIVO POR ID) ==========
+Route::get('/api/file/{id}', function ($id) {
+    $file = File::findOrFail($id);
+    $fullPath = Storage::disk('public')->path($file->saved_as);
+    
+    if (!file_exists($fullPath)) {
+        return response()->json(['error' => 'File not found'], 404);
+    }
+    
+    return response()->file($fullPath, [
+        'Content-Type' => $file->mime_type,
+        'Content-Disposition' => 'inline; filename="' . $file->original_name . '"'
+    ]);
+});
+
+
 // Exportar contactos a Excel
 Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');
 Route::get('/export/contacts/filtered', [ExportController::class, 'exportFiltered'])->name('export.filtered');

@@ -9,6 +9,7 @@ let currentContactPhone = null;   // Número de teléfono REAL (519xxxx)
 let currentContactName = null;    // Nombre del contacto
 let isFetching = false;
 let currentSelectedPrice = 0;
+let currentPromoType = 'pdf';
 
 
 // ========== FUNCIONES AUXILIARES ==========
@@ -468,7 +469,78 @@ function removeTag(contactId, tagId) {
         }
     });
 }
+let currentTagFilter = null;
 
+function loadTagFilters() {
+    $.get('/tags/all', function(tags) {
+        if (tags.length === 0) {
+            $('#tag-filters-container').addClass('hidden');
+            return;
+        }
+        
+        $('#tag-filters-container').removeClass('hidden');
+        let filtersHtml = '<button onclick="filterByTag(\'\')" class="text-[9px] px-2 py-1 rounded-full bg-gray-200 hover:bg-gray-300 transition-all">Todos</button>';
+        
+        tags.forEach(tag => {
+            filtersHtml += `
+                <button onclick="filterByTag(${tag.id})" 
+                        class="text-[9px] px-2 py-1 rounded-full transition-all"
+                        style="background-color: ${tag.color}20; color: ${tag.color}; border: 1px solid ${tag.color}">
+                    ${escapeHtml(tag.name)}
+                </button>
+            `;
+        });
+        
+        $('#tag-filters-list').html(filtersHtml);
+    });
+}
+//Filtrar contactos por etiqueta
+function filterByTag(tagId) {
+    // Guardar el filtro activo
+    currentTagFilter = tagId;
+    
+    // Marcar botón activo
+    $('#tag-filters-list button').removeClass('ring-2 ring-red-500 font-bold');
+    if (tagId && tagId !== '') {
+        $(`#tag-filters-list button[onclick="filterByTag(${tagId})"]`).addClass('ring-2 ring-red-500 font-bold');
+    } else {
+        $('#tag-filters-list button[onclick="filterByTag(\'\')"]').addClass('ring-2 ring-red-500 font-bold');
+        currentTagFilter = null;
+        loadOrderedContacts();
+        return;
+    }
+    
+    // Filtrar por tag
+    $.get(`/contacts/by-tag/${tagId}`, function(contacts) {
+        let html = '';
+        
+        if (contacts.length === 0) {
+            html = '<div class="text-center text-gray-400 py-8">No hay contactos con esta etiqueta</div>';
+        } else {
+            contacts.forEach(contact => {
+                const isIntervened = contact.is_intervened == 0;
+                const statusClass = isIntervened ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
+                const statusText = isIntervened ? 'AUTO' : 'MANUAL';
+                
+                html += `
+                    <div onclick="loadChat(${contact.id}, '${escapeHtml(contact.name)}', ${isIntervened})"
+                         class="p-4 border-b hover:bg-gray-50 cursor-pointer transition flex justify-between items-center contact-card">
+                        <div>
+                            <p class="font-bold text-gray-800">${escapeHtml(contact.name)}</p>
+                            <p class="text-xs text-gray-500">${escapeHtml(contact.whatsapp_id)}</p>
+                            ${isIntervened ? `<div class="text-[9px] text-green-600 mt-1">🤖 IA: ${contact.ia_messages_count ?? 0}</div>` : ''}
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </div>
+                `;
+            });
+        }
+        
+        $('#contact-list').html(html);
+    });
+}
 // ========== FUNCIONES DE INVENTARIO ==========
 function loadInventoryData() {
     $.get('/inventory/products', function(products) {
@@ -619,7 +691,7 @@ function selectProductForMessage(name, price) {
     loadQuickMessages(name, price);
 }
 
-// ========== ENVÍO A N8N (CORREGIDO) ==========
+// ========== ENVÍO A N8N ==========
 function sendToN8N(messageContent) {
     // Usar el número de teléfono REAL capturado
     const phoneNumber = currentContactPhone;
@@ -759,141 +831,7 @@ function insertIntoChat(text) {
     $('#message-input').val(text).focus();
 }
 
-// ========== INICIALIZACIÓN ==========
-$(document).ready(function() {
-    // Inicializar detección de comandos
-setupCommandDetection();
-    loadOrderedContacts();
-    console.log("🚀 Don Guando Dashboard iniciado");
-    loadTagFilters();
-    // Buscador de contactos
-$('#search-contacts').on('input', function() {
-    const query = $(this).val();
-    searchContacts(query);
-});
-    // Buscador de inventario
-    $('#inventory-search').on('keyup', function() {
-        let value = $(this).val().toLowerCase();
-        $("#inventory-table-body tr").filter(function() {
-            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
-        });
-    });
-    
-    // Búsqueda de productos en chat
-    $('#chat-product-search').on('input', function() {
-        let query = $(this).val();
-        if (query.length < 2) {
-            $('#chat-product-results').empty();
-            return;
-        }
-        
-        $.get(`/inventory/products?search=${query}`, function(products) {
-            let results = $('#chat-product-results');
-            results.empty();
-            
-            products.forEach(p => {
-                results.append(`
-                    <div onclick="selectProductForMessage('${p.name}', '${p.price}')" 
-                         class="p-2 border rounded-lg hover:bg-red-50 cursor-pointer">
-                        <div class="text-xs font-bold">${p.name}</div>
-                        <div class="text-[10px] text-blue-600">S/ ${p.price} - Stock: ${p.stock}</div>
-                    </div>
-                `);
-            });
-        });
-    });
-    
-    // Formulario de producto
-    $('#product-form').on('submit', function(e) {
-        e.preventDefault();
-        
-        let id = $('#p-id').val();
-        let url = id ? `/inventory/update/${id}` : '/inventory/save';
-        let formData = {
-            name: $('#p-name').val(),
-            price: $('#p-price').val(),
-            stock: $('#p-stock').val(),
-            unit: $('#p-unit').val(),
-            beneficio: $('#p-beneficio').val(),
-            psicologia_venta: $('#p-psicologia').val(),
-            _token: $('meta[name="csrf-token"]').attr('content')
-        };
-        
-        $.post(url, formData)
-            .done(function(data) {
-                let msg = id ? `¡Cambios guardados en ${data.name}!` : `¡Producto creado: ${data.name}!`;
-                alert(msg);
-                closeProductForm();
-                loadInventoryData();
-            })
-            .fail(function() {
-                alert("Error al procesar la solicitud");
-            });
-    });
-    
-    // Formulario de respuestas rápidas
-    $(document).on('submit', '#quick-response-form', function(e) {
-        e.preventDefault();
-        
-        const data = {
-            id: $('#q-id').val(),
-            title: $('#q-title').val(),
-            body: $('#q-body').val(),
-            _token: $('meta[name="csrf-token"]').attr('content')
-        };
-        
-        if (!data.title || !data.body) {
-            alert("Por favor rellena todos los campos");
-            return;
-        }
-        
-        $.ajax({
-            url: '/quick-responses/save',
-            method: 'POST',
-            data: data,
-            success: function() {
-                alert("¡Guardado correctamente!");
-                closeConfigQuickMessages();
-                
-                let currentP = $('#selected-product-name').text();
-                if (currentP && currentP !== "") {
-                    loadQuickMessages(currentP, currentSelectedPrice);
-                }
-            },
-            error: function() {
-                alert("Error al guardar");
-            }
-        });
-    });
-    
-// Refresh automático de mensajes Y lista de contactos (solo si NO hay filtro activo)
-setInterval(() => {
-    if (!document.hidden) {
-        // Verificar si hay un filtro de búsqueda activo
-        const searchQuery = $('#search-contacts').val();
-        const isFilterActive = searchQuery && searchQuery.length > 0;
-        
-        // Si NO hay filtro activo, recargar la lista ordenada
-        if (!isFilterActive && currentTagFilter === null) {
-            loadOrderedContacts();
-        }
-        
-        // Siempre refrescar mensajes del chat activo
-        if (currentContactId) {
-            fetchMessages(currentContactId);
-            updateBotStatus(currentContactId);
-        }
-    }
-}, 3000);
-    
-    // Cerrar dropdown al hacer clic fuera
-    $(document).click(function(event) {
-        if (!$(event.target).closest('#btn-menu, #dropdown-menu, #btn-show-order').length) {
-            $('#dropdown-menu').addClass('hidden');
-        }
-    });
-});
-// ========== BÚSQUEDA DE CONTACTOS ==========
+// ========== BUSQUEDA DE CONTACTOS ==========
 function searchContacts(query) {
     if (query.length === 0) {
         // Si no hay búsqueda, recargar todos los contactos
@@ -926,82 +864,6 @@ function searchContacts(query) {
         $('#contact-list').html(html);
     });
 }
-
-// ========== FUNCIONES DE FILTROS POR TAG ==========
-let currentTagFilter = null;
-
-function loadTagFilters() {
-    $.get('/tags/all', function(tags) {
-        if (tags.length === 0) {
-            $('#tag-filters-container').addClass('hidden');
-            return;
-        }
-        
-        $('#tag-filters-container').removeClass('hidden');
-        let filtersHtml = '<button onclick="filterByTag(\'\')" class="text-[9px] px-2 py-1 rounded-full bg-gray-200 hover:bg-gray-300 transition-all">Todos</button>';
-        
-        tags.forEach(tag => {
-            filtersHtml += `
-                <button onclick="filterByTag(${tag.id})" 
-                        class="text-[9px] px-2 py-1 rounded-full transition-all"
-                        style="background-color: ${tag.color}20; color: ${tag.color}; border: 1px solid ${tag.color}">
-                    ${escapeHtml(tag.name)}
-                </button>
-            `;
-        });
-        
-        $('#tag-filters-list').html(filtersHtml);
-    });
-}
-
-function filterByTag(tagId) {
-    // Guardar el filtro activo
-    currentTagFilter = tagId;
-    
-    // Marcar botón activo
-    $('#tag-filters-list button').removeClass('ring-2 ring-red-500 font-bold');
-    if (tagId && tagId !== '') {
-        $(`#tag-filters-list button[onclick="filterByTag(${tagId})"]`).addClass('ring-2 ring-red-500 font-bold');
-    } else {
-        $('#tag-filters-list button[onclick="filterByTag(\'\')"]').addClass('ring-2 ring-red-500 font-bold');
-        currentTagFilter = null;
-        loadOrderedContacts();
-        return;
-    }
-    
-    // Filtrar por tag
-    $.get(`/contacts/by-tag/${tagId}`, function(contacts) {
-        let html = '';
-        
-        if (contacts.length === 0) {
-            html = '<div class="text-center text-gray-400 py-8">No hay contactos con esta etiqueta</div>';
-        } else {
-            contacts.forEach(contact => {
-                const isIntervened = contact.is_intervened == 0;
-                const statusClass = isIntervened ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
-                const statusText = isIntervened ? 'AUTO' : 'MANUAL';
-                
-                html += `
-                    <div onclick="loadChat(${contact.id}, '${escapeHtml(contact.name)}', ${isIntervened})"
-                         class="p-4 border-b hover:bg-gray-50 cursor-pointer transition flex justify-between items-center contact-card">
-                        <div>
-                            <p class="font-bold text-gray-800">${escapeHtml(contact.name)}</p>
-                            <p class="text-xs text-gray-500">${escapeHtml(contact.whatsapp_id)}</p>
-                            ${isIntervened ? `<div class="text-[9px] text-green-600 mt-1">🤖 IA: ${contact.ia_messages_count ?? 0}</div>` : ''}
-                        </div>
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">
-                            ${statusText}
-                        </span>
-                    </div>
-                `;
-            });
-        }
-        
-        $('#contact-list').html(html);
-    });
-}
-
-// ========== CARGAR CONTACTOS ORDENADOS ==========
 function loadOrderedContacts() {
     // Si hay un filtro de tag activo, NO recargar
     if (currentTagFilter !== null && currentTagFilter !== '') {
@@ -1051,7 +913,7 @@ function loadOrderedContacts() {
     });
 }
 
-// ========== ACTUALIZAR BOTÓN ANCLAR EN MENÚ ==========
+//  ACTUALIZAR BOTÓN ANCLAR EN MENÚ 
 function updatePinButtonState(isPinned) {
     if (isPinned) {
         $('#pin-chat-text').text('Desanclar chat');
@@ -1062,7 +924,7 @@ function updatePinButtonState(isPinned) {
     }
 }
 
-// ========== ANCLAR/DESANCLAR DESDE EL MENÚ ==========
+//  ANCLAR/DESANCLAR DESDE EL MENÚ 
 function togglePinChatFromMenu() {
     if (!currentContactId) {
         showToast('Primero selecciona un chat', 'warning');
@@ -1077,7 +939,6 @@ function togglePinChatFromMenu() {
         showToast('Error al anclar/desanclar', 'error');
     });
 }
-
 // ========== EXPORTAR CONTACTOS ==========
 function exportContacts() {
     window.location.href = '/export/contacts';
@@ -1091,8 +952,8 @@ function exportFilteredContacts() {
     window.location.href = '/export/contacts/filtered?' + $.param(filters);
 }
 
-// ========== SISTEMA DE COMANDOS (INDEPENDIENTE) ==========
 
+// ========== SISTEMA DE COMANDOS (⚡) ==========
 function openCmdConfig() {
     $('#modal-cmd-config').removeClass('hidden');
     loadCmdCategories();
@@ -1247,18 +1108,28 @@ function deleteCmdCategory(id) {
 }
 
 function loadCmdCategorySelect() {
-    $.get('/cmd/categories', function(categories) {
-        let options = '<option value="">Todas las categorías</option>';
-        categories.forEach(cat => {
-            options += `<option value="${cat.id}">${cat.icon || '📁'} ${cat.name}</option>`;
+    console.log('Cargando categorías para selector...');
+    
+    $.get('/cmd/categories')
+        .done(function(categories) {
+            console.log('Categorías recibidas:', categories);
+            
+            let options = '<option value="">Seleccionar categoría</option>';
+            categories.forEach(cat => {
+                options += `<option value="${cat.id}">${cat.icon || '📁'} ${escapeHtml(cat.name)}</option>`;
+            });
+            
+            $('#cmd-edit-category, #cmd-filter-category').html(options);
+            
+            // Evento change para filtrar
+            $('#cmd-filter-category').off('change').on('change', function() {
+                loadCmdCommands();
+            });
+        })
+        .fail(function(xhr) {
+            console.error('Error al cargar categorías:', xhr);
+            $('#cmd-edit-category, #cmd-filter-category').html('<option value="">Error cargando categorías</option>');
         });
-        $('#cmd-filter-category, #edit-cmd-category').html(options);
-        
-        // Agregar evento change para filtrar automáticamente
-        $('#cmd-filter-category').off('change').on('change', function() {
-            loadCmdCommands();
-        });
-    });
 }
 
 function loadCmdCommands() {
@@ -1305,6 +1176,7 @@ function openCmdCommandForm() {
     $('#cmd-edit-category').val('');
     $('#cmd-form-title').text('Nuevo Comando');
     $('#modal-cmd-command-form').removeClass('hidden');
+    loadCmdCategorySelect();
 }
 
 function closeCmdCommandForm() {
@@ -1471,6 +1343,8 @@ function showCommandSuggestions(query) {
         $('#command-suggestions').removeClass('hidden').html(html);
     });
 }
+
+// ========== COMANDOS UNIFICADOS ==========
 function setupCommandDetection() {
     $('#message-input').on('input', function() {
         let value = $(this).val();
@@ -1608,19 +1482,6 @@ function executeUnifiedCommand(commandData) {
     if (commandData.type === 'text') {
         sendQuickCommand(commandData.body);
     } else {
-        sendPromoCommandById(commandData.id);
-    }
-}
-function selectUnifiedCommand(commandData) {
-    $('#command-suggestions').addClass('hidden');
-    $('#quick-replies-panel').addClass('hidden');
-    $('#promo-suggestions').addClass('hidden');
-    
-    if (commandData.type === 'text') {
-        // Enviar comando de texto
-        sendQuickCommand(commandData.body);
-    } else {
-        // Enviar promoción (PDF o imagen)
         sendPromoCommandById(commandData.id);
     }
 }
@@ -1772,14 +1633,6 @@ function loadUnifiedCommandsPanel() {
         $('#quick-replies-categories').html(html || '<div class="text-center text-gray-400 text-xs py-4">No hay comandos configurados</div>');
     });
 }
-function selectCommand(command, body) {
-    // Cerrar sugerencias
-    $('#command-suggestions').addClass('hidden');
-    $('#quick-replies-panel').addClass('hidden');
-    
-    // Enviar el mensaje directamente
-    sendQuickCommand(body);
-}
 function openCmdConfigAndClose() {
     // Cerrar el panel de respuestas rápidas
     $('#quick-replies-panel').addClass('hidden');
@@ -1788,12 +1641,7 @@ function openCmdConfigAndClose() {
     // Abrir el modal de configuración
     openCmdConfig();
 }
-
-
 // ========== SISTEMA DE PROMOCIONES (PDF e IMÁGENES) ==========
-
-let currentPromoType = 'pdf';
-
 function openPromoConfig() {
     $('#modal-promo-config').removeClass('hidden');
     loadPromotions('pdf');
@@ -2046,70 +1894,8 @@ function sendPromoCommand(promoId) {
     });
 }
 
-// Detectar comandos de promociones (para sugerencias)
-function showPromoSuggestions(matches, query) {
-    if (!matches || matches.length === 0) {
-        $('#promo-suggestions').addClass('hidden');
-        return;
-    }
-    
-    let html = '<div class="divide-y">';
-    matches.forEach(m => {
-        let preview = m.caption ? m.caption.substring(0, 50) : (m.type === 'pdf' ? '📄 Documento PDF' : '🖼️ Imagen');
-        html += `
-            <div onclick="selectPromoCommand(${m.id})" class="p-2 hover:bg-gray-100 cursor-pointer transition-colors">
-                <div class="flex items-center gap-2">
-                    <span class="font-mono text-pink-600 text-sm font-bold">${escapeHtml(m.command)}</span>
-                    <span class="text-xs text-gray-500">${escapeHtml(m.title)}</span>
-                </div>
-                <div class="text-[10px] text-gray-400 mt-1 truncate">${escapeHtml(preview)}</div>
-                <div class="text-[9px] text-gray-300 mt-0.5">${m.type === 'pdf' ? '📄 PDF' : '🖼️ Imagen'}</div>
-            </div>
-        `;
-    });
-    html += '</div>';
-    
-    $('#promo-suggestions').removeClass('hidden').html(html);
-    
-    // Posicionar correctamente
-    let input = $('#message-input');
-    let container = input.closest('.relative');
-    if (container.length) {
-        let offset = container.offset();
-        let inputHeight = input.outerHeight();
-        
-        $('#promo-suggestions').css({
-            position: 'fixed',
-            bottom: $(window).height() - offset.top + 10,
-            left: offset.left,
-            width: container.outerWidth(),
-            zIndex: 1002
-        });
-    }
-}
-
-function selectPromoCommand(promoId) {
-    $('#promo-suggestions').addClass('hidden');
-    sendPromoCommand(promoId);
-}
-function convertGoogleDriveUrl(url) {
-    // Detectar si es URL de Google Drive
-    const driveRegex = /drive\.google\.com\/file\/d\/([^\/]+)\/view/;
-    const match = url.match(driveRegex);
-    
-    if (match) {
-        const fileId = match[1];
-        // Usar URL completa del proxy
-        const baseUrl = window.location.origin; // http://109.199.110.100:8100
-        return `${baseUrl}/drive-proxy/${fileId}`;
-    }
-    return url;
-}
-
 // ========== GESTIÓN DE ARCHIVOS ==========
-
 let currentFileTab = 'pdf';
-
 function openFileManager() {
     // Reiniciar la pestaña activa a PDF por defecto
     currentFileTab = 'pdf';
@@ -2331,6 +2117,141 @@ function loadFileSelectorFiltered(type, selectedId = null) {
             $('#promo-file-select').html('<option value="">❌ Error cargando archivos</option>');
         });
 }
+// ========== INICIALIZACIÓN ==========
+$(document).ready(function() {
+    // Inicializar detección de comandos
+setupCommandDetection();
+    loadOrderedContacts();
+    console.log("🚀 Don Guando Dashboard iniciado");
+    loadTagFilters();
+    // Buscador de contactos
+$('#search-contacts').on('input', function() {
+    const query = $(this).val();
+    searchContacts(query);
+});
+    // Buscador de inventario
+    $('#inventory-search').on('keyup', function() {
+        let value = $(this).val().toLowerCase();
+        $("#inventory-table-body tr").filter(function() {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+        });
+    });
+    
+    // Búsqueda de productos en chat
+    $('#chat-product-search').on('input', function() {
+        let query = $(this).val();
+        if (query.length < 2) {
+            $('#chat-product-results').empty();
+            return;
+        }
+        
+        $.get(`/inventory/products?search=${query}`, function(products) {
+            let results = $('#chat-product-results');
+            results.empty();
+            
+            products.forEach(p => {
+                results.append(`
+                    <div onclick="selectProductForMessage('${p.name}', '${p.price}')" 
+                         class="p-2 border rounded-lg hover:bg-red-50 cursor-pointer">
+                        <div class="text-xs font-bold">${p.name}</div>
+                        <div class="text-[10px] text-blue-600">S/ ${p.price} - Stock: ${p.stock}</div>
+                    </div>
+                `);
+            });
+        });
+    });
+    
+    // Formulario de producto
+    $('#product-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        let id = $('#p-id').val();
+        let url = id ? `/inventory/update/${id}` : '/inventory/save';
+        let formData = {
+            name: $('#p-name').val(),
+            price: $('#p-price').val(),
+            stock: $('#p-stock').val(),
+            unit: $('#p-unit').val(),
+            beneficio: $('#p-beneficio').val(),
+            psicologia_venta: $('#p-psicologia').val(),
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+        
+        $.post(url, formData)
+            .done(function(data) {
+                let msg = id ? `¡Cambios guardados en ${data.name}!` : `¡Producto creado: ${data.name}!`;
+                alert(msg);
+                closeProductForm();
+                loadInventoryData();
+            })
+            .fail(function() {
+                alert("Error al procesar la solicitud");
+            });
+    });
+    
+    // Formulario de respuestas rápidas
+    $(document).on('submit', '#quick-response-form', function(e) {
+        e.preventDefault();
+        
+        const data = {
+            id: $('#q-id').val(),
+            title: $('#q-title').val(),
+            body: $('#q-body').val(),
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+        
+        if (!data.title || !data.body) {
+            alert("Por favor rellena todos los campos");
+            return;
+        }
+        
+        $.ajax({
+            url: '/quick-responses/save',
+            method: 'POST',
+            data: data,
+            success: function() {
+                alert("¡Guardado correctamente!");
+                closeConfigQuickMessages();
+                
+                let currentP = $('#selected-product-name').text();
+                if (currentP && currentP !== "") {
+                    loadQuickMessages(currentP, currentSelectedPrice);
+                }
+            },
+            error: function() {
+                alert("Error al guardar");
+            }
+        });
+    });
+    
+// Refresh automático de mensajes Y lista de contactos (solo si NO hay filtro activo)
+setInterval(() => {
+    if (!document.hidden) {
+        // Verificar si hay un filtro de búsqueda activo
+        const searchQuery = $('#search-contacts').val();
+        const isFilterActive = searchQuery && searchQuery.length > 0;
+        
+        // Si NO hay filtro activo, recargar la lista ordenada
+        if (!isFilterActive && currentTagFilter === null) {
+            loadOrderedContacts();
+        }
+        
+        // Siempre refrescar mensajes del chat activo
+        if (currentContactId) {
+            fetchMessages(currentContactId);
+            updateBotStatus(currentContactId);
+        }
+    }
+}, 3000);
+    
+    // Cerrar dropdown al hacer clic fuera
+    $(document).click(function(event) {
+        if (!$(event.target).closest('#btn-menu, #dropdown-menu, #btn-show-order').length) {
+            $('#dropdown-menu').addClass('hidden');
+        }
+    });
+});
+
 // ========== FUNCIONES GLOBALES (para onclick en HTML) ==========
 window.openPromoConfig = openPromoConfig;
 window.closePromoConfig = closePromoConfig;
