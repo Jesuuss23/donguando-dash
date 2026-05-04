@@ -16,6 +16,7 @@ use App\Models\QuickCommand;
 use App\Models\Promotion;
 use App\Models\File;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Catalogo;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -670,7 +671,102 @@ Route::get('/api/file/{id}', function ($id) {
     ]);
 });
 
+// ========== SISTEMA DE CATÁLOGOS (📚) ==========
 
+// Obtener todos los catálogos
+Route::get('/catalogos', function () {
+    try {
+        $catalogos = Catalogo::orderBy('order')->get();
+        return response()->json($catalogos);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
+// Obtener un catálogo por categoría
+Route::get('/catalogos/{categoria}', function ($categoria) {
+    return Catalogo::where('slug', $categoria)->firstOrFail();
+});
+
+// Actualizar catálogo
+Route::post('/catalogos/save', function (Request $request) {
+    try {
+        $catalogo = Catalogo::updateOrCreate(
+            ['id' => $request->id],
+            [
+                'categoria' => $request->categoria,
+                'slug' => \Str::slug($request->categoria),
+                'pdf_url' => $request->pdf_url,
+                'pdf_active' => $request->pdf_active === 'true' || $request->pdf_active === true,
+                'pdf_file_id' => $request->pdf_file_id,
+                'imagen_url' => $request->imagen_url,
+                'imagen_active' => $request->imagen_active === 'true' || $request->imagen_active === true,
+                'imagen_file_id' => $request->imagen_file_id,
+                'link_url' => $request->link_url,
+                'link_active' => $request->link_active === 'true' || $request->link_active === true,
+            ]
+        );
+        
+        return response()->json(['success' => true, 'catalogo' => $catalogo]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error guardando catálogo: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+});
+// ========== API PARA CATÁLOGOS ==========
+Route::get('/api/catalogo/{categoria}', function ($categoria) {
+    $catalogo = Catalogo::where('slug', $categoria)->first();
+    
+    if (!$catalogo) {
+        $catalogo = Catalogo::where('categoria', $categoria)->first();
+    }
+    
+    if (!$catalogo) {
+        return response()->json(['success' => false, 'message' => 'Categoría no encontrada'], 404);
+    }
+    
+    // Prioridad: PDF > Imagen > Link
+    if ($catalogo->pdf_active && $catalogo->pdf_file_id) {
+        $file = File::find($catalogo->pdf_file_id);
+        if ($file) {
+            return response()->json([
+                'success' => true,
+                'type' => 'pdf',
+                'categoria' => $catalogo->categoria,
+                'slug' => $catalogo->slug,
+                'file_url' => url('/api/file/' . $file->id),
+                'file_name' => $file->original_name,
+            ]);
+        }
+    }
+    
+    if ($catalogo->imagen_active && $catalogo->imagen_file_id) {
+        $file = File::find($catalogo->imagen_file_id);
+        if ($file) {
+            return response()->json([
+                'success' => true,
+                'type' => 'image',
+                'categoria' => $catalogo->categoria,
+                'slug' => $catalogo->slug,
+                'file_url' => url('/api/file/' . $file->id),
+                'file_name' => $file->original_name,
+            ]);
+        }
+    }
+    
+    if ($catalogo->link_active && $catalogo->link_url) {
+        return response()->json([
+            'success' => true,
+            'type' => 'link',
+            'categoria' => $catalogo->categoria,
+            'slug' => $catalogo->slug,
+            'url' => $catalogo->link_url,
+        ]);
+    }
+    
+    return response()->json(['success' => false, 'message' => 'Sin contenido activo'], 404);
+});
 // Exportar contactos a Excel
 Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');
 Route::get('/export/contacts/filtered', [ExportController::class, 'exportFiltered'])->name('export.filtered');

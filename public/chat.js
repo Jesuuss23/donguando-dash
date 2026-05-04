@@ -167,6 +167,7 @@ function loadChat(contactId, name, isIntervened) {
     // Mostrar botón de configuración de comandos
 $('#btn-cmd-config').removeClass('hidden');
 $('#btn-promo-config').removeClass('hidden');
+$('#btn-catalogos').removeClass('hidden');
     
     updateButtonUI(isIntervened);
     fetchMessages(contactId);
@@ -2252,6 +2253,395 @@ setInterval(() => {
     });
 });
 
+// ========== SISTEMA DE CATÁLOGOS (📚) ==========
+
+let catalogoEditId = null;
+let catalogoEditFormat = null;
+
+function openCatalogosConfig() {
+    $('#modal-catalogos').removeClass('hidden');
+    loadCatalogos();
+}
+
+function closeCatalogosConfig() {
+    $('#modal-catalogos').addClass('hidden');
+}
+
+function loadCatalogos() {
+    $.get('/catalogos', function(catalogos) {
+        let html = '';
+        
+        catalogos.forEach(cat => {
+            const pdfStatus = cat.pdf_active ? '🟢 Activado' : '⚪ Desactivado';
+            const imagenStatus = cat.imagen_active ? '🟢 Activado' : '⚪ Desactivado';
+            const linkStatus = cat.link_active ? '🟢 Activado' : '⚪ Desactivado';
+            
+            const pdfInfo = cat.pdf_file_id ? `📄 ID: ${cat.pdf_file_id}` : (cat.pdf_url ? `🔗 ${cat.pdf_url.substring(0, 30)}...` : '❌ Sin archivo');
+            const imagenInfo = cat.imagen_file_id ? `🖼️ ID: ${cat.imagen_file_id}` : (cat.imagen_url ? `🔗 ${cat.imagen_url.substring(0, 30)}...` : '❌ Sin archivo');
+            const linkInfo = cat.link_url ? `🔗 ${cat.link_url.substring(0, 40)}...` : '❌ Sin link';
+            
+            html += `
+                <div class="bg-white border rounded-lg p-4 mb-3 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-bold text-gray-800 text-lg">${escapeHtml(cat.categoria)}</h4>
+                        <span class="text-xs text-gray-400">ID: ${cat.id}</span>
+                    </div>
+                    
+                    <!-- PDF -->
+                    <div class="flex items-center justify-between mb-2 p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center gap-3 flex-1">
+                            <span class="text-2xl">📄</span>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-gray-500 uppercase">PDF</span>
+                                    <span class="text-xs text-gray-500">${pdfInfo}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="editCatalogoFile(${cat.id}, 'pdf', '${escapeHtml(cat.categoria)}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-full transition-colors">
+                                ✏️ Editar
+                            </button>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" class="sr-only peer" ${cat.pdf_active ? 'checked' : ''} onchange="toggleCatalogoActive(${cat.id}, 'pdf', this.checked)">
+                                <div class="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
+                                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+                            </label>
+                            <span class="text-xs ${cat.pdf_active ? 'text-green-600 font-bold' : 'text-gray-400'}">${pdfStatus}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Imagen -->
+                    <div class="flex items-center justify-between mb-2 p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center gap-3 flex-1">
+                            <span class="text-2xl">🖼️</span>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-gray-500 uppercase">Imagen</span>
+                                    <span class="text-xs text-gray-500">${imagenInfo}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="editCatalogoFile(${cat.id}, 'imagen', '${escapeHtml(cat.categoria)}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-full transition-colors">
+                                ✏️ Editar
+                            </button>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" class="sr-only peer" ${cat.imagen_active ? 'checked' : ''} onchange="toggleCatalogoActive(${cat.id}, 'imagen', this.checked)">
+                                <div class="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
+                                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+                            </label>
+                            <span class="text-xs ${cat.imagen_active ? 'text-green-600 font-bold' : 'text-gray-400'}">${imagenStatus}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Link -->
+                    <div class="flex items-center justify-between mb-2 p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center gap-3 flex-1">
+                            <span class="text-2xl">🔗</span>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-gray-500 uppercase">Link</span>
+                                    <span class="text-xs text-gray-500">${linkInfo}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="editCatalogoLink(${cat.id}, '${escapeHtml(cat.categoria)}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-full transition-colors">
+                                ✏️ Editar
+                            </button>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" class="sr-only peer" ${cat.link_active ? 'checked' : ''} onchange="toggleCatalogoActive(${cat.id}, 'link', this.checked)">
+                                <div class="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
+                                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+                            </label>
+                            <span class="text-xs ${cat.link_active ? 'text-green-600 font-bold' : 'text-gray-400'}">${linkStatus}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        $('#catalogos-list').html(html || '<div class="text-center text-gray-400 py-8">No hay catálogos configurados</div>');
+    });
+}
+
+function editCatalogoFile(id, format, categoria) {
+    catalogoEditId = id;
+    catalogoEditFormat = format;
+    $('#catalogo-edit-id').val(id);
+    $('#catalogo-edit-format').val(format);
+    $('#catalogo-categoria-name').text(categoria);
+    
+    // Cargar selector de archivos filtrado por tipo
+    const fileType = format === 'pdf' ? 'pdf' : 'image';
+    loadCatalogoFileSelector(fileType);
+    
+    // Configurar el callback para cuando se suba un archivo
+    catalogoUploadCallback = function(fileId) {
+        // Seleccionar automáticamente el archivo recién subido
+        $('#catalogo-file-select').val(fileId);
+        // Guardar automáticamente
+        saveCatalogoFile();
+    };
+    
+    $('#catalogo-file-title').text(format === 'pdf' ? '📄 Editar PDF' : '🖼️ Editar Imagen');
+    $('#modal-catalogo-file').removeClass('hidden');
+}
+
+function closeCatalogoFileForm() {
+    $('#modal-catalogo-file').addClass('hidden');
+}
+
+function loadCatalogoFileSelector(type) {
+    $.get('/files/list')
+        .done(function(files) {
+            console.log('Cargando archivos para selector de catálogo, tipo:', type);
+            
+            let filtered = files.filter(f => {
+                if (type === 'pdf') return f.mime_type === 'application/pdf';
+                return f.mime_type.startsWith('image/');
+            });
+            
+            let options = '<option value="">Seleccionar archivo</option>';
+            filtered.forEach(file => {
+                const icon = file.mime_type === 'application/pdf' ? '📄' : '🖼️';
+                options += `<option value="${file.id}">${icon} ${escapeHtml(file.original_name)}</option>`;
+            });
+            
+            $('#catalogo-file-select').html(options);
+        })
+        .fail(function(xhr) {
+            console.error('Error cargando archivos:', xhr);
+            $('#catalogo-file-select').html('<option value="">Error cargando archivos</option>');
+        });
+}
+
+function saveCatalogoFile() {
+    const fileId = $('#catalogo-file-select').val();
+    const format = $('#catalogo-edit-format').val();
+    const categoria = $('#catalogo-categoria-name').text();
+    
+    if (!fileId) {
+        showToast('Selecciona un archivo', 'warning');
+        return;
+    }
+    
+    $.get('/catalogos', function(catalogos) {
+        const catalogo = catalogos.find(c => c.categoria === categoria);
+        
+        if (!catalogo) {
+            showToast('Error: Categoría no encontrada', 'error');
+            return;
+        }
+        
+        let data = {
+            id: catalogo.id,
+            categoria: categoria,
+            pdf_file_id: catalogo.pdf_file_id,
+            pdf_active: catalogo.pdf_active,
+            imagen_file_id: catalogo.imagen_file_id,
+            imagen_active: catalogo.imagen_active,
+            link_url: catalogo.link_url,
+            link_active: catalogo.link_active,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+        
+        if (format === 'pdf') {
+            data.pdf_file_id = fileId;
+            data.pdf_active = true; 
+        } else if (format === 'imagen') {
+            data.imagen_file_id = fileId;
+            data.imagen_active = true;
+        }
+        
+        $.ajax({
+            url: '/catalogos/save',
+            method: 'POST',
+            data: data,
+            success: function() {
+                showToast(`✅ ${format === 'pdf' ? 'PDF' : 'Imagen'} guardado`, 'success');
+                closeCatalogoFileForm();
+                loadCatalogos();
+            },
+            error: function(xhr) {
+                console.error('Error:', xhr);
+                showToast('Error al guardar', 'error');
+            }
+        });
+    });
+}
+function editCatalogoLink(id, categoria) {
+    $('#catalogo-link-id').val(id);
+    $('#catalogo-link-categoria').text(categoria);
+    
+    // Obtener el link actual
+    $.get(`/catalogos?categoria=${categoria}`, function(catalogos) {
+        const catalogo = catalogos.find(c => c.id === id);
+        if (catalogo && catalogo.link_url) {
+            $('#catalogo-link-url').val(catalogo.link_url);
+        } else {
+            $('#catalogo-link-url').val('');
+        }
+    });
+    
+    $('#modal-catalogo-link').removeClass('hidden');
+}
+
+function closeCatalogoLinkForm() {
+    $('#modal-catalogo-link').addClass('hidden');
+}
+
+function saveCatalogoLink() {
+    const id = $('#catalogo-link-id').val();
+    const url = $('#catalogo-link-url').val();
+    const categoria = $('#catalogo-link-categoria').text();
+    
+    $.get('/catalogos', function(catalogos) {
+        const catalogo = catalogos.find(c => c.id == id);
+        
+        if (!catalogo) {
+            showToast('Error: Categoría no encontrada', 'error');
+            return;
+        }
+        
+        let data = {
+            id: catalogo.id,
+            categoria: categoria,
+            pdf_file_id: catalogo.pdf_file_id,
+            pdf_active: catalogo.pdf_active,
+            imagen_file_id: catalogo.imagen_file_id,
+            imagen_active: catalogo.imagen_active,
+            link_url: url,
+            link_active: url ? true : false,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+        
+        $.ajax({
+            url: '/catalogos/save',
+            method: 'POST',
+            data: data,
+            success: function() {
+                showToast('✅ Link guardado', 'success');
+                closeCatalogoLinkForm();
+                loadCatalogos();
+            },
+            error: function() {
+                showToast('Error al guardar', 'error');
+            }
+        });
+    });
+}
+
+function toggleCatalogoActive(id, format, isActive) {
+    $.get('/catalogos', function(catalogos) {
+        const catalogo = catalogos.find(c => c.id === id);
+        
+        if (!catalogo) {
+            showToast('Error', 'error');
+            loadCatalogos();
+            return;
+        }
+        
+        let data = {
+            id: catalogo.id,
+            categoria: catalogo.categoria,
+            pdf_file_id: catalogo.pdf_file_id,
+            pdf_active: format === 'pdf' ? isActive : catalogo.pdf_active,
+            imagen_file_id: catalogo.imagen_file_id,
+            imagen_active: format === 'imagen' ? isActive : catalogo.imagen_active,
+            link_url: catalogo.link_url,
+            link_active: format === 'link' ? isActive : catalogo.link_active,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+        
+        $.ajax({
+            url: '/catalogos/save',
+            method: 'POST',
+            data: data,
+            success: function() {
+                showToast(isActive ? '🟢 Activado' : '⚪ Desactivado', 'success');
+                loadCatalogos();
+            },
+            error: function() {
+                showToast('Error al cambiar estado', 'error');
+                loadCatalogos();
+            }
+        });
+    });
+}
+// ========== SUBIR ARCHIVO DESDE MODAL DE CATÁLOGO ==========
+
+let catalogoUploadCallback = null;
+
+function openUploadModalForCatalogo(callback) {
+    catalogoUploadCallback = callback;
+    
+    // Determinar el tipo según el formato que estamos editando
+    let type = catalogoEditFormat === 'pdf' ? 'pdf' : 'image';
+    $('#upload-file-type').val(type);
+    $('#upload-file-input').val('');
+    
+    // Validar tipo de archivo en el input
+    if (type === 'pdf') {
+        $('#upload-file-input').attr('accept', '.pdf');
+    } else {
+        $('#upload-file-input').attr('accept', 'image/*');
+    }
+    
+    $('#modal-upload-file').removeClass('hidden');
+}
+
+function closeUploadModal() {
+    $('#modal-upload-file').addClass('hidden');
+    catalogoUploadCallback = null;
+}
+
+function uploadFile() {
+    const fileInput = $('#upload-file-input')[0];
+    const type = $('#upload-file-type').val();
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showToast('Selecciona un archivo', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('type', type);
+    formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+    
+    showToast('Subiendo archivo...', 'info');
+    
+    $.ajax({
+        url: '/files/upload',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(fileData) {
+            showToast('✅ Archivo subido', 'success');
+            closeUploadModal();
+            
+            // Recargar listas de archivos
+            loadFileList('pdf');
+            loadFileList('image');
+            
+            // Si hay un callback (desde el modal de catálogo), ejecutarlo con el ID del archivo
+            if (catalogoUploadCallback) {
+                catalogoUploadCallback(fileData.id);
+                catalogoUploadCallback = null;
+            } else {
+                // Si no, recargar el selector de catálogo
+                loadCatalogoFileSelector(type);
+            }
+        },
+        error: function(xhr) {
+            console.error('Error al subir:', xhr);
+            showToast('❌ Error al subir archivo', 'error');
+        }
+    });
+}
 // ========== FUNCIONES GLOBALES (para onclick en HTML) ==========
 window.openPromoConfig = openPromoConfig;
 window.closePromoConfig = closePromoConfig;

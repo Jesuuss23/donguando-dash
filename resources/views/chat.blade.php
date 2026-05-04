@@ -39,6 +39,7 @@
 <button onclick="exportContacts()" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm hover:bg-gray-100 transition-colors">
     <span>📊</span> <span>Exportar contactos</span>
 </button>
+
 <!-- Filtros de etiquetas -->
 <div id="tag-filters-container" class="p-3 border-b bg-gray-50 hidden">
     <p class="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">📌 FILTRAR POR ETIQUETA<span><button onclick="openTagsManager()" class="text-xs text-blue-500 hover:underline">⚙️Administrar</button></span></p>
@@ -88,7 +89,11 @@
         <div class="flex items-center space-x-4">
             <button id="btn-show-order" onclick="toggleOrderPanel()" class="hidden p-2 text-yellow-600 hover:bg-yellow-100 rounded-full transition-colors">📋</button>
             <button id="btn-intervene" onclick="toggleIntervention()" class="hidden px-4 py-1 rounded-full text-[10px] font-black shadow-sm transition-all duration-300">IA ON</button>
-
+<button id="btn-catalogos" onclick="openCatalogosConfig()" class="hidden p-2 text-indigo-600 hover:bg-indigo-100 rounded-full transition-colors" title="Catálogos">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-width="2"/>
+    </svg>
+</button>
             <div class="relative inline-block text-left">
                 <button onclick="toggleMenu()" id="btn-menu" class="hidden p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -647,6 +652,79 @@
         <div class="flex gap-2">
             <button onclick="closeUploadModal()" class="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
             <button onclick="uploadFile()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold">Subir</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Gestión de Catálogos (📚) -->
+<div id="modal-catalogos" class="hidden fixed inset-0 z-[150] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center rounded-t-2xl">
+            <h3 class="text-lg font-black uppercase">📚 Gestión de Catálogos</h3>
+            <button onclick="closeCatalogosConfig()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4">
+            <div id="catalogos-list" class="space-y-3">
+                <div class="text-center text-gray-400 py-8">Cargando catálogos...</div>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t bg-gray-50 flex justify-end">
+            <button onclick="closeCatalogosConfig()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar PDF/Imagen de catálogo -->
+<div id="modal-catalogo-file" class="hidden fixed inset-0 z-[160] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
+        <h3 class="text-xl font-black text-gray-800 mb-4 uppercase" id="catalogo-file-title">Editar PDF</h3>
+        <input type="hidden" id="catalogo-edit-id">
+        <input type="hidden" id="catalogo-edit-format">
+        
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Categoría</label>
+            <p id="catalogo-categoria-name" class="text-sm font-bold text-gray-700 bg-gray-100 p-2 rounded"></p>
+        </div>
+        
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Seleccionar archivo</label>
+            <div class="flex gap-2">
+                <select id="catalogo-file-select" class="flex-1 border rounded-lg px-3 py-2 text-sm">
+                    <option value="">Seleccionar archivo existente</option>
+                </select>
+                <button type="button" onclick="openUploadModalForCatalogo()" class="bg-green-600 text-white px-3 py-2 rounded-lg text-sm">📤 Subir</button>
+            </div>
+            <p class="text-[9px] text-gray-400 mt-1">Selecciona un archivo PDF o imagen según el tipo</p>
+        </div>
+        
+        <div class="flex gap-2 pt-2">
+            <button onclick="closeCatalogoFileForm()" class="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
+            <button onclick="saveCatalogoFile()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-bold">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar Link de catálogo -->
+<div id="modal-catalogo-link" class="hidden fixed inset-0 z-[160] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
+        <h3 class="text-xl font-black text-gray-800 mb-4 uppercase">🔗 Editar Link</h3>
+        <input type="hidden" id="catalogo-link-id">
+        
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Categoría</label>
+            <p id="catalogo-link-categoria" class="text-sm font-bold text-gray-700 bg-gray-100 p-2 rounded"></p>
+        </div>
+        
+        <div class="mb-3">
+            <label class="block text-xs font-bold text-gray-500 mb-1">URL del Link</label>
+            <input type="url" id="catalogo-link-url" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="https://ejemplo.com/catalogo">
+        </div>
+        
+        <div class="flex gap-2 pt-2">
+            <button onclick="closeCatalogoLinkForm()" class="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
+            <button onclick="saveCatalogoLink()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-bold">Guardar</button>
         </div>
     </div>
 </div>
