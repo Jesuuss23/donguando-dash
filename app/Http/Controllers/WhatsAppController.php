@@ -10,32 +10,43 @@ class WhatsAppController extends Controller
 {
 public function receive(Request $request)
 {
+    $type = $request->input('type');
+    $from = $request->input('from');
+    $fromName = $request->input('from_name', 'Cliente');
+    $fromMe = filter_var($request->input('from_me', false), FILTER_VALIDATE_BOOLEAN);
+    
     $contact = Contact::firstOrCreate(
-        ['whatsapp_id' => $request->from],
-        ['name' => $request->name ?? 'Cliente Nuevo']
+        ['whatsapp_id' => $from],
+        ['name' => $fromName]
     );
-
-    $isFromMe = filter_var($request->from_me, FILTER_VALIDATE_BOOLEAN);
-
-    $contact->messages()->create([
-        'body' => $request->body,
-        'from_me' => $isFromMe
-    ]);
-
-    // ========== CONTADOR IA ==========
-    \Log::info('Evaluando condición:', [
-        'count_ia' => $request->count_ia,
-        'is_intervened' => $contact->is_intervened,
-        'ambas_true' => ($request->count_ia && $contact->is_intervened)
-    ]);
-
-$iaActiva = ($contact->is_intervened == 0); // 0 = IA activa
-
-if ($request->count_ia && $iaActiva) {
-    $contact->incrementIaCount();
-    \Log::info('Contador incrementado a: ' . $contact->ia_messages_count);
-}
-
+    
+    $messagePayload = [
+        'from_me' => $fromMe,
+        'type' => $type,
+        'body' => ''
+    ];
+    
+    if ($type === 'text') {
+        $messagePayload['body'] = $request->input('body', '');
+    }
+    elseif ($type === 'image') {
+        $messagePayload['image_preview'] = $request->input('preview');
+        $messagePayload['image_size'] = $request->input('file_size');
+        $messagePayload['file_name'] = 'imagen_' . time() . '.jpg';
+        $messagePayload['body'] = $request->input('caption', ' ');
+    }
+    elseif ($type === 'link_preview') {
+        $messagePayload['link_url'] = $request->input('url');
+        $messagePayload['link_title'] = $request->input('title');
+        $messagePayload['body'] = $request->input('body', '');
+    }
+    
+    $contact->messages()->create($messagePayload);
+    
+    if ($request->count_ia && $contact->is_intervened == 0) {
+        $contact->incrementIaCount();
+    }
+    
     return response()->json(['status' => 'success']);
 }
 }

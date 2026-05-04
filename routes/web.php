@@ -767,6 +767,18 @@ Route::get('/api/catalogo/{categoria}', function ($categoria) {
     
     return response()->json(['success' => false, 'message' => 'Sin contenido activo'], 404);
 });
+// Guardar mensaje enviado desde el dashboard
+Route::post('/chat/save-message', function (Request $request) {
+    $contact = Contact::findOrFail($request->contact_id);
+    
+    $message = $contact->messages()->create([
+        'body' => $request->body,
+        'from_me' => true,
+        'type' => 'text'
+    ]);
+    
+    return response()->json(['status' => 'success', 'message_id' => $message->id]);
+});
 // Exportar contactos a Excel
 Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');
 Route::get('/export/contacts/filtered', [ExportController::class, 'exportFiltered'])->name('export.filtered');

@@ -10,6 +10,7 @@ let currentContactName = null;    // Nombre del contacto
 let isFetching = false;
 let currentSelectedPrice = 0;
 let currentPromoType = 'pdf';
+let lastMessageId = null;
 
 
 // ========== FUNCIONES AUXILIARES ==========
@@ -102,24 +103,68 @@ function fetchMessages(contactId) {
         
         if (messages.length !== currentCount) {
             let html = '';
+            
             messages.forEach(msg => {
                 let alignment = msg.from_me ? 'justify-end' : 'justify-start';
                 let color = msg.from_me ? 'bg-green-200' : 'bg-white';
-                html += `
-                    <div class="flex ${alignment} mb-2 message-bubble">
-                        <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
-                            <p class="text-sm text-gray-800">${formatLinks(msg.body)}</p>
-                            <p class="text-[9px] text-gray-400 text-right">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                
+                // === IMAGEN ===
+                if (msg.image_preview && msg.image_preview.length > 100) {
+                    let imgSrc = msg.image_preview;
+                    if (!imgSrc.startsWith('data:image') && !imgSrc.startsWith('http')) {
+                        imgSrc = 'data:image/jpeg;base64,' + imgSrc;
+                    }
+                    
+                    html += `
+                        <div class="flex ${alignment} mb-2">
+                            <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
+                                <img src="${imgSrc}" class="max-w-full rounded" 
+                                     style="max-height: 200px; width: auto; cursor: pointer;"
+                                     onclick="window.open('${imgSrc}', '_blank')"
+                                     loading="lazy" alt="Imagen">
+                                ${msg.body ? `<p class="text-sm text-gray-800 mt-1">${formatLinks(msg.body)}</p>` : ''}
+                                <p class="text-[9px] text-gray-400 text-right mt-1">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                            </div>
                         </div>
-                    </div>`;
+                    `;
+                }
+                // === LINK PREVIEW ===
+                else if (msg.link_url) {
+                    html += `
+                        <div class="flex ${alignment} mb-2">
+                            <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xl">🔗</span>
+                                    <a href="${escapeHtml(msg.link_url)}" target="_blank" 
+                                       class="text-xs text-blue-500 hover:underline break-all">
+                                        ${escapeHtml(msg.link_title || msg.link_url)}
+                                    </a>
+                                </div>
+                                ${msg.body ? `<p class="text-sm text-gray-800 mt-1">${formatLinks(msg.body)}</p>` : ''}
+                                <p class="text-[9px] text-gray-400 text-right mt-1">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                // === TEXTO NORMAL ===
+                else {
+                    html += `
+                        <div class="flex ${alignment} mb-2 message-bubble">
+                            <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
+                                <p class="text-sm text-gray-800">${formatLinks(msg.body || '')}</p>
+                                <p class="text-[9px] text-gray-400 text-right">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                            </div>
+                        </div>
+                    `;
+                }
             });
+            
             $('#chat-messages').html(html);
             $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
         }
         isFetching = false;
     }).fail(() => { isFetching = false; });
 }
-
 function loadContactInfo(contactId) {
     $.ajax({
         url: '/contact-info/' + contactId,
@@ -694,37 +739,53 @@ function selectProductForMessage(name, price) {
 
 // ========== ENVÍO A N8N ==========
 function sendToN8N(messageContent) {
-    // Usar el número de teléfono REAL capturado
     const phoneNumber = currentContactPhone;
     
-    console.log("📤 Enviando mensaje - Teléfono:", phoneNumber);
-    console.log("📤 Mensaje:", messageContent);
-    
     if (!phoneNumber || phoneNumber === 'null' || phoneNumber === 'undefined') {
-        showToast("⚠️ No se pudo obtener el número del contacto. Selecciona el chat nuevamente.", 'warning');
+        showToast("⚠️ No se pudo obtener el número del contacto.", 'warning');
         return;
     }
     
-    // Enviar a través del proxy de Laravel (sin CORS)
+    // 1. Primero guardar el mensaje localmente (para que aparezca en el chat)
     $.ajax({
-        url: '/api/sync-n8n',
+        url: '/chat/save-message',
         method: 'POST',
         data: JSON.stringify({
-            name: currentContactName,
-            phone: phoneNumber,
-            body: messageContent
+            contact_id: currentContactId,
+            body: messageContent,
+            from_me: true,
+            _token: $('meta[name="csrf-token"]').attr('content')
         }),
         contentType: 'application/json',
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        success: function() {
+            // 2. Recargar mensajes para mostrar el nuevo
+            fetchMessages(currentContactId);
+            
+            // 3. Enviar a n8n (para que lo reenvíe a WhatsApp)
+            $.ajax({
+                url: '/api/sync-n8n',
+                method: 'POST',
+                data: JSON.stringify({
+                    name: currentContactName,
+                    phone: phoneNumber,
+                    body: messageContent
+                }),
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    console.log("✅ Mensaje enviado a n8n:", response);
+                    showToast('🚀 ¡Mensaje enviado!', 'success');
+                },
+                error: function(xhr) {
+                    console.error("❌ Error al enviar a n8n:", xhr);
+                    showToast('❌ Error al enviar el mensaje', 'error');
+                }
+            });
         },
-        success: function(response) {
-            console.log("✅ Respuesta del servidor:", response);
-            showToast('🚀 ¡Mensaje enviado exitosamente!', 'success');
-        },
-        error: function(xhr) {
-            console.error("❌ Error al enviar:", xhr);
-            showToast('❌ Error al enviar el mensaje', 'error');
+        error: function() {
+            showToast('❌ Error al guardar mensaje local', 'error');
         }
     });
 }
