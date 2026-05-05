@@ -89,6 +89,12 @@
         <div class="flex items-center space-x-4">
             <button id="btn-show-order" onclick="toggleOrderPanel()" class="hidden p-2 text-yellow-600 hover:bg-yellow-100 rounded-full transition-colors">📋</button>
             <button id="btn-intervene" onclick="toggleIntervention()" class="hidden px-4 py-1 rounded-full text-[10px] font-black shadow-sm transition-all duration-300">IA ON</button>
+            <!-- Botón para configurar número destino -->
+<button id="btn-set-destination" onclick="openDestinationPanel()" class="hidden p-2 text-indigo-600 hover:bg-indigo-100 rounded-full transition-colors" title="Configurar número destino">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" stroke-width="2"/>
+    </svg>
+</button>
 <button id="btn-catalogos" onclick="openCatalogosConfig()" class="hidden p-2 text-indigo-600 hover:bg-indigo-100 rounded-full transition-colors" title="Catálogos">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-width="2"/>
@@ -726,6 +732,22 @@
             <button onclick="closeCatalogoLinkForm()" class="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
             <button onclick="saveCatalogoLink()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-bold">Guardar</button>
         </div>
+    </div>
+</div>
+<!-- Panel para configurar número destino -->
+<div id="destination-panel" class="hidden fixed bottom-20 right-4 bg-white rounded-lg shadow-xl border p-4 z-50 w-72">
+    <div class="flex justify-between items-center mb-3">
+        <h4 class="text-sm font-bold text-gray-700">📞 Número destino</h4>
+        <button onclick="closeDestinationPanel()" class="text-gray-400 hover:text-gray-600">&times;</button>
+    </div>
+    <input type="tel" id="destination-phone" placeholder="Ej: 51902235011" class="w-full border rounded-lg px-3 py-2 text-sm mb-2 focus:ring-2 focus:ring-indigo-500">
+    <p class="text-[9px] text-gray-400 mb-2">Solo números, sin espacios ni símbolos</p>
+    <div class="flex gap-2">
+        <button onclick="saveDestinationNumber()" class="flex-1 bg-indigo-600 text-white py-1 rounded-lg text-sm font-bold">Guardar</button>
+        <button onclick="clearDestinationNumber()" class="flex-1 bg-gray-200 text-gray-600 py-1 rounded-lg text-sm">Limpiar</button>
+    </div>
+    <div id="current-destination-display" class="mt-2 text-[10px] text-gray-500 text-center hidden">
+        Actual: <span id="current-destination-number"></span>
     </div>
 </div>
 </body>

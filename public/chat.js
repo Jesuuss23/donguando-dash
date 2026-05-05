@@ -99,71 +99,90 @@ function fetchMessages(contactId) {
     isFetching = true;
     
     $.get('/chat/messages/' + contactId, function(messages) {
-        const currentCount = $('#chat-messages .message-bubble').length;
-        
-        if (messages.length !== currentCount) {
-            let html = '';
-            
-            messages.forEach(msg => {
-                let alignment = msg.from_me ? 'justify-end' : 'justify-start';
-                let color = msg.from_me ? 'bg-green-200' : 'bg-white';
-                
-                // === IMAGEN ===
-                if (msg.image_preview && msg.image_preview.length > 100) {
-                    let imgSrc = msg.image_preview;
-                    if (!imgSrc.startsWith('data:image') && !imgSrc.startsWith('http')) {
-                        imgSrc = 'data:image/jpeg;base64,' + imgSrc;
-                    }
-                    
-                    html += `
-                        <div class="flex ${alignment} mb-2">
-                            <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
-                                <img src="${imgSrc}" class="max-w-full rounded" 
-                                     style="max-height: 200px; width: auto; cursor: pointer;"
-                                     onclick="window.open('${imgSrc}', '_blank')"
-                                     loading="lazy" alt="Imagen">
-                                ${msg.body ? `<p class="text-sm text-gray-800 mt-1">${formatLinks(msg.body)}</p>` : ''}
-                                <p class="text-[9px] text-gray-400 text-right mt-1">${new Date(msg.created_at).toLocaleTimeString()}</p>
-                            </div>
-                        </div>
-                    `;
-                }
-                // === LINK PREVIEW ===
-                else if (msg.link_url) {
-                    html += `
-                        <div class="flex ${alignment} mb-2">
-                            <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xl">🔗</span>
-                                    <a href="${escapeHtml(msg.link_url)}" target="_blank" 
-                                       class="text-xs text-blue-500 hover:underline break-all">
-                                        ${escapeHtml(msg.link_title || msg.link_url)}
-                                    </a>
-                                </div>
-                                ${msg.body ? `<p class="text-sm text-gray-800 mt-1">${formatLinks(msg.body)}</p>` : ''}
-                                <p class="text-[9px] text-gray-400 text-right mt-1">${new Date(msg.created_at).toLocaleTimeString()}</p>
-                            </div>
-                        </div>
-                    `;
-                }
-                // === TEXTO NORMAL ===
-                else {
-                    html += `
-                        <div class="flex ${alignment} mb-2 message-bubble">
-                            <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
-                                <p class="text-sm text-gray-800">${formatLinks(msg.body || '')}</p>
-                                <p class="text-[9px] text-gray-400 text-right">${new Date(msg.created_at).toLocaleTimeString()}</p>
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-            
-            $('#chat-messages').html(html);
-            $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+        if (messages.length === 0) {
+            isFetching = false;
+            return;
         }
+        
+        // Obtener el último ID de mensaje actual
+        const newLastId = messages[messages.length - 1].id;
+        
+        // Si no hay mensajes nuevos, salir sin hacer nada
+        if (lastMessageId === newLastId && $('#chat-messages .message-bubble').length === messages.length) {
+            isFetching = false;
+            return;
+        }
+        
+        // Actualizar el último ID
+        lastMessageId = newLastId;
+        
+        // Renderizar todos los mensajes (solo cuando hay cambios)
+        renderMessages(messages);
+        
         isFetching = false;
     }).fail(() => { isFetching = false; });
+}
+
+function renderMessages(messages) {
+    let html = '';
+    
+    messages.forEach(msg => {
+        let alignment = msg.from_me ? 'justify-end' : 'justify-start';
+        let color = msg.from_me ? 'bg-green-200' : 'bg-white';
+        
+        // IMAGEN
+        if (msg.image_preview && msg.image_preview.length > 100) {
+            let imgSrc = msg.image_preview;
+            if (!imgSrc.startsWith('data:image') && !imgSrc.startsWith('http')) {
+                imgSrc = 'data:image/jpeg;base64,' + imgSrc;
+            }
+            
+            html += `
+                <div class="flex ${alignment} mb-2 message-bubble" data-message-id="${msg.id}">
+                    <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
+                        <img src="${imgSrc}" class="max-w-full rounded" 
+                             style="max-height: 200px; width: auto; cursor: pointer;"
+                             onclick="window.open('${imgSrc}', '_blank')"
+                             loading="lazy" alt="Imagen">
+                        ${msg.body ? `<p class="text-sm text-gray-800 mt-1">${formatLinks(msg.body)}</p>` : ''}
+                        <p class="text-[9px] text-gray-400 text-right mt-1">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            `;
+        }
+        // LINK
+        else if (msg.link_url) {
+            html += `
+                <div class="flex ${alignment} mb-2 message-bubble" data-message-id="${msg.id}">
+                    <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🔗</span>
+                            <a href="${escapeHtml(msg.link_url)}" target="_blank" 
+                               class="text-xs text-blue-500 hover:underline break-all">
+                                ${escapeHtml(msg.link_title || msg.link_url)}
+                            </a>
+                        </div>
+                        ${msg.body ? `<p class="text-sm text-gray-800 mt-1">${formatLinks(msg.body)}</p>` : ''}
+                        <p class="text-[9px] text-gray-400 text-right mt-1">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            `;
+        }
+        // TEXTO NORMAL
+        else {
+            html += `
+                <div class="flex ${alignment} mb-2 message-bubble" data-message-id="${msg.id}">
+                    <div class="${color} p-2 rounded-lg shadow-sm max-w-md border border-gray-100">
+                        <p class="text-sm text-gray-800">${formatLinks(msg.body || '')}</p>
+                        <p class="text-[9px] text-gray-400 text-right">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    $('#chat-messages').html(html);
+    $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
 }
 function loadContactInfo(contactId) {
     $.ajax({
@@ -188,6 +207,7 @@ function loadContactInfo(contactId) {
 
 function loadChat(contactId, name, isIntervened) {
     // Guardar ID numérico
+    lastMessageId = null;
     currentContactId = contactId;
     currentContactName = name;
     
@@ -213,6 +233,7 @@ function loadChat(contactId, name, isIntervened) {
 $('#btn-cmd-config').removeClass('hidden');
 $('#btn-promo-config').removeClass('hidden');
 $('#btn-catalogos').removeClass('hidden');
+$('#btn-set-destination').removeClass('hidden')
     
     updateButtonUI(isIntervened);
     fetchMessages(contactId);
@@ -746,7 +767,6 @@ function sendToN8N(messageContent) {
         return;
     }
     
-    // 1. Primero guardar el mensaje localmente (para que aparezca en el chat)
     $.ajax({
         url: '/chat/save-message',
         method: 'POST',
@@ -758,10 +778,8 @@ function sendToN8N(messageContent) {
         }),
         contentType: 'application/json',
         success: function() {
-            // 2. Recargar mensajes para mostrar el nuevo
             fetchMessages(currentContactId);
             
-            // 3. Enviar a n8n (para que lo reenvíe a WhatsApp)
             $.ajax({
                 url: '/api/sync-n8n',
                 method: 'POST',
@@ -2304,7 +2322,7 @@ setInterval(() => {
             updateBotStatus(currentContactId);
         }
     }
-}, 3000);
+}, 5000);
     
     // Cerrar dropdown al hacer clic fuera
     $(document).click(function(event) {
@@ -2703,6 +2721,92 @@ function uploadFile() {
         }
     });
 }
+// ========== NÚMERO DESTINO PERSONALIZADO (SOLO PARA N8N) ==========
+
+// Esta variable almacena el número destino específico para n8n
+// NO afecta a sendToN8N
+let n8nDestinationPhone = null;
+
+function openDestinationPanel() {
+    $('#destination-panel').removeClass('hidden');
+    // Mostrar número actual si existe
+    if (n8nDestinationPhone) {
+        $('#current-destination-number').text(n8nDestinationPhone);
+        $('#current-destination-display').removeClass('hidden');
+        $('#destination-phone').val(n8nDestinationPhone);
+    } else {
+        $('#current-destination-display').addClass('hidden');
+        $('#destination-phone').val('');
+    }
+}
+
+function closeDestinationPanel() {
+    $('#destination-panel').addClass('hidden');
+}
+
+function saveDestinationNumber() {
+    let phone = $('#destination-phone').val().trim();
+    
+    if (!phone) {
+        showToast('Ingresa un número de teléfono', 'warning');
+        return;
+    }
+    
+    // Limpiar formato
+    phone = phone.replace(/\D/g, '');
+    
+    if (!phone.startsWith('519') || phone.length !== 12) {
+        showToast('Formato inválido. Debe ser 519XXXXXXXXX (12 dígitos)', 'warning');
+        return;
+    }
+    
+    // Guardar en variable local (NO en localStorage para no afectar sendToN8N)
+    n8nDestinationPhone = phone;
+    
+    // Enviar al servidor para que n8n pueda consultarlo
+    $.ajax({
+        url: '/api/set-destination-phone',
+        method: 'POST',
+        data: JSON.stringify({ phone: phone }),
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            console.log('Número destino para n8n guardado en servidor:', phone);
+        },
+        error: function() {
+            console.log('Error al guardar en servidor');
+        }
+    });
+    
+    $('#current-destination-number').text(phone);
+    $('#current-destination-display').removeClass('hidden');
+    showToast(`✅ Número destino para n8n guardado: ${phone}`, 'success');
+    closeDestinationPanel();
+}
+
+function clearDestinationNumber() {
+    n8nDestinationPhone = null;
+    $('#destination-phone').val('');
+    $('#current-destination-display').addClass('hidden');
+    
+    // También eliminar del servidor
+    $.ajax({
+        url: '/api/set-destination-phone',
+        method: 'POST',
+        data: JSON.stringify({ phone: null }),
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+    
+    showToast('🗑️ Número destino eliminado', 'success');
+    closeDestinationPanel();
+}
+
+
 // ========== FUNCIONES GLOBALES (para onclick en HTML) ==========
 window.openPromoConfig = openPromoConfig;
 window.closePromoConfig = closePromoConfig;

@@ -779,6 +779,23 @@ Route::post('/chat/save-message', function (Request $request) {
     
     return response()->json(['status' => 'success', 'message_id' => $message->id]);
 });
+//Enviar a N8N el numero almacenado
+Route::get('/api/get-destination-phone', function () {
+    $phone = session('destination_phone', '51902235011');
+    
+    return response()->json([
+        'success' => true,
+        'phone' => $phone
+    ]);
+});
+
+// Para actualizar el número (desde el dashboard o desde n8n)
+Route::post('/api/set-destination-phone', function (Request $request) {
+    $phone = $request->input('phone');
+    session(['destination_phone' => $phone]);
+    
+    return response()->json(['success' => true]);
+});
 // Exportar contactos a Excel
 Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');
 Route::get('/export/contacts/filtered', [ExportController::class, 'exportFiltered'])->name('export.filtered');
