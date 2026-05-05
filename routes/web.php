@@ -796,6 +796,19 @@ Route::post('/api/set-destination-phone', function (Request $request) {
     
     return response()->json(['success' => true]);
 });
+
+// Actualizar nombre del contacto
+Route::put('/contacts/{id}/name', function ($id, Request $request) {
+    $contact = Contact::findOrFail($id);
+    $contact->name = $request->name;
+    $contact->save();
+    
+    return response()->json([
+        'success' => true,
+        'name' => $contact->name,
+        'id' => $contact->id
+    ]);
+});
 // Exportar contactos a Excel
 Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');
 Route::get('/export/contacts/filtered', [ExportController::class, 'exportFiltered'])->name('export.filtered');

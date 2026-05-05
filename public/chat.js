@@ -970,6 +970,7 @@ function loadOrderedContacts() {
             html += `
                 <div onclick="loadChat(${contact.id}, '${escapeHtml(contact.name)}', ${isIntervened})"
                      class="p-4 border-b hover:bg-gray-50 cursor-pointer transition flex justify-between items-center contact-card ${isPinned ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}">
+                    
                     <div class="flex-1">
                         <div class="flex items-center gap-2">
                             <p class="font-bold text-gray-800 ${isPinned ? 'text-blue-700' : ''}">
@@ -980,7 +981,15 @@ function loadOrderedContacts() {
                         <p class="text-xs text-gray-500">${escapeHtml(contact.whatsapp_id)}</p>
                         ${isIntervened ? `<div class="text-[9px] text-green-600 mt-1">🤖 IA: ${contact.ia_messages_count ?? 0}</div>` : ''}
                     </div>
+                    
                     <div class="flex flex-col items-end gap-1">
+                        <!-- Botón de edición -->
+                        <button onclick="event.stopPropagation(); editContactName(${contact.id}, '${escapeHtml(contact.name)}')" 
+                                class="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors" title="Editar nombre">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2"/>
+                            </svg>
+                        </button>
                         <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">
                             ${statusText}
                         </span>
@@ -2755,8 +2764,8 @@ function saveDestinationNumber() {
     // Limpiar formato
     phone = phone.replace(/\D/g, '');
     
-    if (!phone.startsWith('519') || phone.length !== 12) {
-        showToast('Formato inválido. Debe ser 519XXXXXXXXX (12 dígitos)', 'warning');
+    if (!phone.startsWith('519') || phone.length !== 11) {
+        showToast('Formato inválido. Debe ser 519XXXXXXXX (11 dígitos)', 'warning');
         return;
     }
     
@@ -2806,7 +2815,89 @@ function clearDestinationNumber() {
     closeDestinationPanel();
 }
 
+// ========== EDITAR NOMBRE DE CONTACTO ==========
+let editingContactId = null;
 
+function editContactName(contactId, currentName) {
+    editingContactId = contactId;
+
+    $.get(`/contact-info/${contactId}`, function(contact) {
+        $('#edit-contact-id').val(contactId);
+        $('#edit-contact-phone').val(contact.whatsapp_id);
+        $('#edit-contact-phone-display').text(contact.whatsapp_id);
+        $('#edit-contact-name').val(currentName);
+        $('#modal-edit-contact').removeClass('hidden');
+    });
+}
+
+function closeEditContactModal() {
+    $('#modal-edit-contact').addClass('hidden');
+    editingContactId = null;
+}
+
+function saveContactName() {
+    const newName = $('#edit-contact-name').val().trim();
+    const contactId = editingContactId;
+    const phoneNumber = $('#edit-contact-phone').val(); // Necesitamos guardar el número también
+    
+    if (!newName) {
+        showToast('El nombre no puede estar vacío', 'warning');
+        return;
+    }
+    
+    // Primero, obtener el número de teléfono del contacto
+    $.get(`/contact-info/${contactId}`, function(contact) {
+        const phone = contact.whatsapp_id;
+        
+        // 1. Guardar en base de datos local
+        $.ajax({
+            url: `/contacts/${contactId}/name`,
+            method: 'PUT',
+            data: {
+                name: newName,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                showToast(`✅ Contacto renombrado a "${response.name}"`, 'success');
+                
+                // Actualizar en la lista de contactos
+                $(`.contact-card:has([onclick*="loadChat(${contactId},"]) .font-bold`).text(response.name);
+                
+                if (currentContactId === contactId) {
+                    $('#contact-name-header').text('Chat con ' + response.name);
+                    currentContactName = response.name;
+                }
+                
+                // 2. Enviar a n8n para actualizar el nombre allí también
+                $.ajax({
+                    url: 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook-test/Actualizar-Contacto',
+                    method: 'POST',
+                    data: JSON.stringify({
+                        name: newName,
+                        phone: phone
+                    }),
+                    contentType: 'application/json',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    success: function() {
+                        console.log('✅ Nombre actualizado en n8n');
+                    },
+                    error: function(xhr) {
+                        console.log('⚠️ Error al actualizar en n8n:', xhr);
+                    }
+                });
+                
+                closeEditContactModal();
+                loadOrderedContacts();
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON?.message || 'Error al renombrar';
+                showToast('❌ ' + msg, 'error');
+            }
+        });
+    });
+}
 // ========== FUNCIONES GLOBALES (para onclick en HTML) ==========
 window.openPromoConfig = openPromoConfig;
 window.closePromoConfig = closePromoConfig;

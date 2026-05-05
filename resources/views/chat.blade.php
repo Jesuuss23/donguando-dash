@@ -13,65 +13,81 @@
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-gray-100 h-screen flex overflow-hidden">
 
-    <!-- PRIMERA COLUMNA: Lista de Contactos -->
-    <div class="w-1/4 bg-white border-r flex flex-col shadow-lg z-10">
-        <div class="p-4 bg-red-700 text-white shadow-md">
-            <h2 class="font-bold text-xl uppercase tracking-wider text-center">Don Guando</h2>
-        </div>
+<!-- PRIMERA COLUMNA: Lista de Contactos -->
+<div class="w-1/4 bg-white border-r flex flex-col shadow-lg z-10">
+    <div class="p-4 bg-red-700 text-white shadow-md">
+        <h2 class="font-bold text-xl uppercase tracking-wider text-center">Don Guando</h2>
+    </div>
 
-        <div class="p-4 border-b flex justify-around bg-gray-50">
-            <button onclick="showSection('chats')" class="text-blue-600 font-bold flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                Chats
-            </button>
-            <button onclick="openInventory()" class="text-gray-500 hover:text-blue-600 font-bold flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                Inventario
-            </button>
+    <div class="p-4 border-b flex justify-around bg-gray-50">
+        <button onclick="showSection('chats')" class="text-blue-600 font-bold flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" stroke-width="2"/></svg>
+            Chats
+        </button>
+        <button onclick="openInventory()" class="text-gray-500 hover:text-blue-600 font-bold flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-width="2"/></svg>
+            Inventario
+        </button>
+    </div>
+    
+    <!-- Buscador de contactos -->
+    <div class="p-3 border-b bg-white">
+        <input type="text" id="search-contacts" 
+               placeholder="🔍 Buscar por nombre o número..." 
+               class="w-full text-sm border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-500">
+    </div>
+    
+    <!-- Filtros de etiquetas -->
+    <div id="tag-filters-container" class="p-3 border-b bg-gray-50 hidden">
+        <div class="flex justify-between items-center mb-2">
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">📌 FILTRAR POR ETIQUETA</p>
+            <button onclick="openTagsManager()" class="text-[9px] text-blue-500 hover:underline">⚙️ Administrar</button>
         </div>
-        <!-- Buscador de contactos -->
-<div class="p-3 border-b bg-white">
-    <input type="text" id="search-contacts" 
-           placeholder="🔍 Buscar por nombre o número..." 
-           class="w-full text-sm border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-500">
-</div>
-<!-- Botón de exportación en el menú de 3 puntitos -->
-<button onclick="exportContacts()" class="flex items-center space-x-2 w-full text-left px-4 py-3 text-sm hover:bg-gray-100 transition-colors">
-    <span>📊</span> <span>Exportar contactos</span>
-</button>
-
-<!-- Filtros de etiquetas -->
-<div id="tag-filters-container" class="p-3 border-b bg-gray-50 hidden">
-    <p class="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">📌 FILTRAR POR ETIQUETA<span><button onclick="openTagsManager()" class="text-xs text-blue-500 hover:underline">⚙️Administrar</button></span></p>
-    <div id="tag-filters-list" class="flex flex-wrap gap-1">
-        <button onclick="filterByTag('')" class="text-[9px] px-2 py-1 rounded-full bg-gray-200 hover:bg-gray-300 transition-all">
-            Todos
+        <div id="tag-filters-list" class="flex flex-wrap gap-1">
+            <button onclick="filterByTag('')" class="text-[9px] px-2 py-1 rounded-full bg-gray-200 hover:bg-gray-300 transition-all">Todos</button>
+        </div>
+    </div>
+    
+    <!-- Lista de contactos -->
+    <div id="contact-list" class="flex-1 overflow-y-auto">
+        @foreach($contacts as $contact)
+            <div class="p-3 border-b hover:bg-gray-50 transition contact-card">
+                <div class="flex justify-between items-start">
+                    <div onclick="loadChat({{ $contact->id }}, '{{ addslashes($contact->name) }}', {{ $contact->is_intervened ? 'true' : 'false' }})" class="flex-1 cursor-pointer">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p class="font-bold text-gray-800">{{ $contact->name }}</p>
+                            @if($contact->is_pinned)
+                                <span class="text-xs text-blue-500">📌</span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-gray-500">{{ $contact->whatsapp_id }}</p>
+                        <div class="text-[9px] text-green-600 mt-1">
+                            🤖 IA: {{ $contact->ia_messages_count ?? 0 }}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 ml-2">
+                        <button onclick="event.stopPropagation(); editContactName({{ $contact->id }}, '{{ addslashes($contact->name) }}')" 
+                                class="text-blue-400 hover:text-blue-700 p-1 rounded transition-colors" title="Editar nombre">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2"/>
+                            </svg>
+                        </button>
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded-full {{ $contact->is_intervened ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600' }}">
+                            {{ $contact->is_intervened ? 'MANUAL' : 'AUTO' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    </div>
+    
+    <!-- Botón de exportación (movido al final de la columna) -->
+    <div class="p-3 border-t bg-gray-50">
+        <button onclick="exportContacts()" class="flex items-center justify-center gap-2 w-full text-sm text-gray-600 hover:text-blue-600 transition-colors">
+            <span>📊</span> <span>Exportar contactos</span>
         </button>
     </div>
 </div>
-        <div id="contact-list" class="flex-1 overflow-y-auto">
-            @foreach($contacts as $contact)
-                <div onclick="loadChat({{ $contact->id }}, '{{ $contact->name }}', {{ $contact->is_intervened ? 'true' : 'false' }})"
-                     class="p-4 border-b hover:bg-gray-50 cursor-pointer transition flex justify-between items-center contact-card">
-                    <div>
-                        <p class="font-bold text-gray-800">{{ $contact->name }}</p>
-                                    @if($contact->is_pinned)
-                <span class="text-xs text-blue-500" title="Chat anclado">📌</span>
-            @endif
-                        <p class="text-xs text-gray-500">{{ $contact->whatsapp_id }}</p>
-                        <!-- Después del número de teléfono -->
-<div class="text-[9px] text-green-600 mt-1">
-    🤖 IA: {{ $contact->ia_messages_count ?? 0 }}
-</div>
-                    </div>
-                    
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ $contact->is_intervened ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600' }}">
-                        {{ $contact->is_intervened ? 'MANUAL' : 'AUTO' }}
-                    </span>
-                </div>
-            @endforeach
-        </div>
-    </div>
 
 <!-- SEGUNDA COLUMNA: Chat Principal -->
 <div class="w-2/4 flex flex-col bg-white border-r">
@@ -86,9 +102,10 @@
             </button>
         </div>
 
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-4">   
             <button id="btn-show-order" onclick="toggleOrderPanel()" class="hidden p-2 text-yellow-600 hover:bg-yellow-100 rounded-full transition-colors">📋</button>
             <button id="btn-intervene" onclick="toggleIntervention()" class="hidden px-4 py-1 rounded-full text-[10px] font-black shadow-sm transition-all duration-300">IA ON</button>
+            
             <!-- Botón para configurar número destino -->
 <button id="btn-set-destination" onclick="openDestinationPanel()" class="hidden p-2 text-indigo-600 hover:bg-indigo-100 rounded-full transition-colors" title="Configurar número destino">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -748,6 +765,30 @@
     </div>
     <div id="current-destination-display" class="mt-2 text-[10px] text-gray-500 text-center hidden">
         Actual: <span id="current-destination-number"></span>
+    </div>
+</div>
+<!-- Modal para editar nombre de contacto -->
+<div id="modal-edit-contact" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
+        <h3 class="text-xl font-black text-gray-800 mb-4 uppercase">✏️ Editar Contacto</h3>
+        <input type="hidden" id="edit-contact-id">
+        <input type="hidden" id="edit-contact-phone">
+        
+        <div class="mb-4">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Número de WhatsApp</label>
+            <p id="edit-contact-phone-display" class="text-sm text-gray-600 bg-gray-100 p-2 rounded"></p>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-xs font-bold text-gray-500 mb-1">Nuevo nombre</label>
+            <input type="text" id="edit-contact-name" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" 
+                   placeholder="Nombre del contacto">
+        </div>
+        
+        <div class="flex gap-2">
+            <button onclick="closeEditContactModal()" class="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancelar</button>
+            <button onclick="saveContactName()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold">Guardar</button>
+        </div>
     </div>
 </div>
 </body>
