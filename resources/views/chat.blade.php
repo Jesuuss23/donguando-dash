@@ -266,6 +266,10 @@
         
         <div class="space-y-4">
             <div>
+                <label class="text-[10px] text-yellow-600 font-bold uppercase">Cliente</label>
+                <p id="info-cliente" class="text-sm font-bold text-gray-800 bg-white p-2 rounded border border-yellow-100">---</p>
+            </div>
+            <div>
                 <label class="text-[10px] text-yellow-600 font-bold uppercase">Producto</label>
                 <p id="info-producto" class="text-sm font-bold text-gray-800 bg-white p-2 rounded border border-yellow-100">---</p>
             </div>

@@ -17,6 +17,7 @@ use App\Models\Promotion;
 use App\Models\File;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Catalogo;
+use App\Models\Setting;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -302,7 +303,7 @@ Route::delete('/quick-responses/delete/{id}', function ($id) {
 */
 
 Route::post('/api/sync-n8n', function (Request $request) {
-    $n8nUrl = 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook-test/sync-contact-whatsapp';
+    $n8nUrl = 'https://auto.donguando.com/n8n/webhook/sync-contact-whatsapp';
     
     $response = Http::post($n8nUrl, [
         'name' => $request->input('name'),
@@ -438,7 +439,7 @@ Route::post('/api/send-promo', function (Request $request) {
     $mediaType = str_starts_with($file->mime_type, 'image/') ? 'image' : 'document';
     
     // Enviar a n8n
-    $n8nPromoUrl = 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook-test/send-promo';
+    $n8nPromoUrl = 'https://auto.donguando.com/n8n/webhook/send-promo';
     
     $response = Http::post($n8nPromoUrl, [
         'phone' => $phone,
@@ -779,9 +780,10 @@ Route::post('/chat/save-message', function (Request $request) {
     
     return response()->json(['status' => 'success', 'message_id' => $message->id]);
 });
-//Enviar a N8N el numero almacenado
+
 Route::get('/api/get-destination-phone', function () {
-    $phone = session('destination_phone', '51902235011');
+    $setting = Setting::where('key', 'destination_phone')->first();
+    $phone = $setting ? $setting->value : null;
     
     return response()->json([
         'success' => true,
@@ -792,7 +794,15 @@ Route::get('/api/get-destination-phone', function () {
 // Para actualizar el número (desde el dashboard o desde n8n)
 Route::post('/api/set-destination-phone', function (Request $request) {
     $phone = $request->input('phone');
-    session(['destination_phone' => $phone]);
+    
+    if ($phone) {
+        Setting::updateOrCreate(
+            ['key' => 'destination_phone'],
+            ['value' => $phone]
+        );
+    } else {
+        Setting::where('key', 'destination_phone')->delete();
+    }
     
     return response()->json(['success' => true]);
 });
@@ -807,6 +817,20 @@ Route::put('/contacts/{id}/name', function ($id, Request $request) {
         'success' => true,
         'name' => $contact->name,
         'id' => $contact->id
+    ]);
+});
+// Proxy para actualizar contacto en n8n
+Route::post('/api/proxy/update-contact', function (Request $request) {
+    $n8nUrl = 'https://auto.donguando.com/n8n/webhook/Actualizar-Contacto';
+    
+    $response = Http::post($n8nUrl, [
+        'name' => $request->input('name'),
+        'phone' => $request->input('phone'),
+    ]);
+    
+    return response()->json([
+        'success' => $response->successful(),
+        'status' => $response->status(),
     ]);
 });
 // Exportar contactos a Excel

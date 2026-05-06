@@ -191,11 +191,12 @@ function loadContactInfo(contactId) {
         cache: false,
         success: function(contact) {
             if (contact) {
+                $('#info-cliente').text(contact.cliente || '---');
                 $('#info-producto').text(contact.producto || '---');
                 $('#info-cantidad').text(contact.cantidad || '---');
                 $('#info-direccion').html(formatLinks(contact.direccion || '---'));
                 
-                if (!contact.producto && !contact.cantidad && !contact.direccion) {
+                if (!contact.cliente &&!contact.producto && !contact.cantidad && !contact.direccion) {
                     $('#order-panel').addClass('hidden');
                 } else {
                     $('#order-panel').removeClass('hidden');
@@ -763,47 +764,31 @@ function sendToN8N(messageContent) {
     const phoneNumber = currentContactPhone;
     
     if (!phoneNumber || phoneNumber === 'null' || phoneNumber === 'undefined') {
-        showToast("⚠️ No se pudo obtener el número del contacto.", 'warning');
+        showToast("⚠️ Selecciona un chat primero.", 'warning');
         return;
     }
     
+    // ✅ Solo enviar a n8n (sin guardar localmente)
     $.ajax({
-        url: '/chat/save-message',
+        url: '/api/sync-n8n',
         method: 'POST',
         data: JSON.stringify({
-            contact_id: currentContactId,
+            name: currentContactName,
+            phone: phoneNumber,
             body: messageContent,
-            from_me: true,
-            _token: $('meta[name="csrf-token"]').attr('content')
+            source: 'dashboard', 
         }),
         contentType: 'application/json',
-        success: function() {
-            fetchMessages(currentContactId);
-            
-            $.ajax({
-                url: '/api/sync-n8n',
-                method: 'POST',
-                data: JSON.stringify({
-                    name: currentContactName,
-                    phone: phoneNumber,
-                    body: messageContent
-                }),
-                contentType: 'application/json',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    console.log("✅ Mensaje enviado a n8n:", response);
-                    showToast('🚀 ¡Mensaje enviado!', 'success');
-                },
-                error: function(xhr) {
-                    console.error("❌ Error al enviar a n8n:", xhr);
-                    showToast('❌ Error al enviar el mensaje', 'error');
-                }
-            });
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         },
-        error: function() {
-            showToast('❌ Error al guardar mensaje local', 'error');
+        success: function(response) {
+            console.log("✅ Mensaje enviado a n8n:", response);
+            showToast('🚀 ¡Mensaje enviado!', 'success');
+        },
+        error: function(xhr) {
+            console.error("❌ Error al enviar a n8n:", xhr);
+            showToast('❌ Error al enviar el mensaje', 'error');
         }
     });
 }
@@ -2870,7 +2855,7 @@ function saveContactName() {
                 
                 // 2. Enviar a n8n para actualizar el nombre allí también
                 $.ajax({
-                    url: 'https://malacological-nathalie-unhermitic.ngrok-free.dev/webhook-test/Actualizar-Contacto',
+                    url: '/api/proxy/update-contact',
                     method: 'POST',
                     data: JSON.stringify({
                         name: newName,

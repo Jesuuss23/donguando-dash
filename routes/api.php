@@ -30,16 +30,23 @@ Route::post('/sync-intervention', function (Request $request) {
 
 // Sincronizar datos de pedido desde n8n
 Route::post('/sync-order-data', function (Request $request) {
+    
     $contact = Contact::where('whatsapp_id', $request->whatsapp_id)->first();
-    if ($contact) {
-        $contact->update([
-            'producto'  => $request->producto,
-            'cantidad'  => $request->cantidad,
-            'direccion' => $request->direccion
-        ]);
-        return response()->json(['status' => 'success']);
+    
+    if (!$contact) {
+        \Log::error('Contacto no encontrado: ' . $request->whatsapp_id);
+        return response()->json(['status' => 'error', 'message' => 'Contacto no encontrado'], 404);
     }
-    return response()->json(['status' => 'not_found'], 404);
+    
+    $contact->producto = $request->producto;
+    $contact->cantidad = $request->cantidad;
+    $contact->direccion = $request->direccion;
+    $contact->cliente = $request->cliente;
+    $contact->save();
+    
+    \Log::info('Contacto actualizado correctamente');
+    
+    return response()->json(['status' => 'success']);
 });
 
 // Verificar estado de intervención (para n8n)
