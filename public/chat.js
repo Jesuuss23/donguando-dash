@@ -802,7 +802,10 @@ function clearOrderInfo() {
     if (!currentContactId) return;
     if (confirm('¿Limpiar los datos del pedido?')) {
         $.post('/chat/clear-order/' + currentContactId, function() {
-            $('#info-producto, #info-cantidad, #info-direccion').text('---');
+            $('#info-cliente').text('---');
+            $('#info-producto').text('---');
+            $('#info-cantidad').text('---');
+            $('#info-direccion').html('---');
             $('#order-panel').addClass('hidden');
             alert('Ficha limpiada');
         });

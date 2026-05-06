@@ -9,7 +9,7 @@
 }
 
 body {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1e1e2a 0%, #2d2d3a 100%);
 }
 
 /* ========== SCROLLBAR PERSONALIZADO ========== */
@@ -18,17 +18,17 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: #e2e8f0;
+    background: #2d2d3a;
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #dc2626;
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #b91c1c;
 }
 
 /* ========== CONTACTO CARD ========== */
@@ -38,7 +38,7 @@ body {
 }
 
 .contact-card:hover {
-    background-color: #f8fafc;
+    background-color: #fef2f2;
     transform: translateX(2px);
 }
 
@@ -47,9 +47,9 @@ body {
     border-left-color: #dc2626;
 }
 
-/* ========== MENSAJES ========== */
+/* ========== FONDO DEL CHAT (PROFESIONAL Y MODERNO) ========== */
 #chat-messages {
-    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    background: linear-gradient(135deg, #f5f0eb 0%, #e8e0d8 100%);
     position: relative;
 }
 
@@ -60,8 +60,9 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.03"><path fill="none" d="M20,20 L80,20 M20,40 L80,40 M20,60 L80,60 M20,80 L80,80" stroke="%236b21a8" stroke-width="1"/><path d="M50,10 L50,90 M30,10 L30,90 M70,10 L70,90" stroke="%236b21a8" stroke-width="1" opacity="0.5"/></svg>');
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" opacity="0.04"><path fill="none" d="M100,20 L20,100 L100,180 L180,100 Z" stroke="%238b5a2b" stroke-width="1"/><circle cx="100" cy="100" r="40" fill="none" stroke="%238b5a2b" stroke-width="0.5"/><path d="M60,60 L140,140 M140,60 L60,140" stroke="%238b5a2b" stroke-width="0.5" opacity="0.5"/></svg>');
     background-repeat: repeat;
+    background-size: 40px;
     pointer-events: none;
 }
 
@@ -79,7 +80,7 @@ body {
 .message-bubble .bg-white {
     background: white;
     border-bottom-left-radius: 4px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 @keyframes messageSlide {
@@ -95,8 +96,8 @@ body {
 
 /* ========== HEADER CHAT ========== */
 #chat-header {
-    background: linear-gradient(90deg, #ffffff 0%, #f8fafc 100%);
-    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(90deg, #ffffff 0%, #faf8f5 100%);
+    border-bottom: 1px solid #e5e0d8;
 }
 
 #contact-name-header {
@@ -109,7 +110,7 @@ body {
 /* ========== PANEL DE VENTAS ========== */
 #quick-messages-list > div {
     transition: all 0.2s ease;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #e5e0d8;
 }
 
 #quick-messages-list > div:hover {
@@ -131,31 +132,8 @@ body {
 }
 
 @keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
-}
-
-/* ========== BADGES ========== */
-.badge-unread {
-    animation: pulse 1s ease-in-out infinite;
-}
-
-/* ========== MODALES ========== */
-.modal-enter {
-    animation: fadeInUp 0.2s ease-out;
-}
-
-#modal-inventory, #modal-product-form, #modal-quick-config {
-    animation: fadeInUp 0.2s ease-out;
-}
-
-/* ========== TOAST NOTIFICATIONS ========== */
-#toast-container > div {
-    animation: slideInRight 0.3s ease-out;
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
 
 @keyframes slideInRight {
@@ -167,6 +145,22 @@ body {
         opacity: 1;
         transform: translateX(0);
     }
+}
+
+/* ========== BADGES ========== */
+.badge-unread {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* ========== MODALES ========== */
+#modal-inventory, #modal-product-form, #modal-quick-config,
+#modal-cmd-config, #modal-promo-config, #modal-file-manager {
+    animation: fadeInUp 0.2s ease-out;
+}
+
+/* ========== TOAST NOTIFICATIONS ========== */
+#toast-container > div {
+    animation: slideInRight 0.3s ease-out;
 }
 
 /* ========== ESTADOS ========== */
@@ -219,7 +213,52 @@ input:focus, textarea:focus, select:focus {
     color: #1e40af;
 }
 
-/* Líneas truncadas */
+/* ========== PANEL DE RESPUESTAS RÁPIDAS (COMANDOS) ========== */
+#quick-replies-panel, #command-suggestions, #promo-suggestions {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: 8px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    max-height: 320px;
+    overflow-y: auto;
+    z-index: 1000;
+    animation: fadeInUp 0.2s ease-out;
+}
+
+#quick-replies-panel::-webkit-scrollbar,
+#command-suggestions::-webkit-scrollbar,
+#promo-suggestions::-webkit-scrollbar {
+    width: 4px;
+}
+
+#quick-replies-panel::-webkit-scrollbar-track,
+#command-suggestions::-webkit-scrollbar-track,
+#promo-suggestions::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#quick-replies-panel::-webkit-scrollbar-thumb,
+#command-suggestions::-webkit-scrollbar-thumb,
+#promo-suggestions::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+/* ========== TABLA DE INVENTARIO ========== */
+.overflow-x-auto {
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+tbody tr:hover {
+    background-color: #fef2f2;
+}
+
 .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -227,173 +266,64 @@ input:focus, textarea:focus, select:focus {
     overflow: hidden;
 }
 
-/* Mejora de scroll en la tabla */
-.overflow-x-auto {
-    overflow-x: auto;
-    scrollbar-width: thin;
+/* ========== TITULO CON GRADIENTE ========== */
+.bg-red-700 {
+    background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%) !important;
 }
 
-/* Filas de tabla */
-tbody tr:hover {
-    background-color: #f8fafc;
+/* ========== BOTÓN DE ENVÍO ========== */
+.bg-green-500 {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
 }
-/* Sugerencias de comandos - debe aparecer encima del input */
-#command-suggestions {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    margin-bottom: 4px;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
-    max-height: 200px;
+
+.bg-green-500:hover {
+    background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
+}
+
+/* Ocultar scrollbar horizontal en lista de contactos */
+#contact-list {
+    overflow-x: hidden;
     overflow-y: auto;
-    z-index: 1000;
 }
 
-/* Panel de respuestas rápidas */
-#quick-replies-panel {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    margin-bottom: 4px;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
-    max-height: 300px;
-    overflow-y: auto;
-    z-index: 1000;
-}
-/* Panel de respuestas rápidas - scroll suave */
-#quick-replies-panel {
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    background: white;
+#contact-list::-webkit-scrollbar {
+    width: 5px;
+    height: 0;
 }
 
-#quick-replies-panel::-webkit-scrollbar {
-    width: 4px;
+#contact-list::-webkit-scrollbar-track {
+    background: #e2e8f0;
+    border-radius: 10px;
 }
 
-#quick-replies-panel::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-#quick-replies-panel::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-/* Sugerencias de comandos */
-#command-suggestions {
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    background: white;
-}
-/* Mejora de scroll en paneles */
-#quick-replies-panel::-webkit-scrollbar,
-#command-suggestions::-webkit-scrollbar {
-    width: 4px;
-}
-
-#quick-replies-panel::-webkit-scrollbar-track,
-#command-suggestions::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-#quick-replies-panel::-webkit-scrollbar-thumb,
-#command-suggestions::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-/* Contenedor relativo para el input */
-#message-input-container {
-    position: relative;
-}
-
-/* Panel de respuestas rápidas - aparece encima sin tapar */
-#quick-replies-panel {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    margin-bottom: 8px;
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
-    max-height: 350px;
-    overflow-y: auto;
-    z-index: 1000;
-}
-
-/* Sugerencias de comandos */
-#command-suggestions {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    margin-bottom: 8px;
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
-    max-height: 250px;
-    overflow-y: auto;
-    z-index: 1001;
-}
-
-/* Animación suave */
-#quick-replies-panel, #command-suggestions {
-    animation: fadeInUp 0.2s ease-out;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-/* Panel de Ventas - Scroll suave */
-#quick-messages-list {
-    scrollbar-width: thin;
-}
-
-#quick-messages-list::-webkit-scrollbar {
-    width: 4px;
-}
-
-#quick-messages-list::-webkit-scrollbar-track {
-    background: #e5e7eb;
-    border-radius: 4px;
-}
-
-#quick-messages-list::-webkit-scrollbar-thumb {
+#contact-list::-webkit-scrollbar-thumb {
     background: #cbd5e1;
-    border-radius: 4px;
+    border-radius: 10px;
 }
 
-#quick-messages-list::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+/* Forzar que el contenido no se desborde horizontalmente */
+.contact-card {
+    overflow-x: hidden;
+    word-wrap: break-word;
+    word-break: break-word;
 }
 
-/* Sticky header */
-.sticky-top {
-    position: sticky;
-    top: 0;
-    background: white;
-    z-index: 10;
+/* Asegurar que los elementos internos no causen scroll horizontal */
+.contact-card .flex-1 {
+    min-width: 0;
+    overflow: hidden;
 }
 
-/* Animaciones para botones */
-.group:hover .group-hover\:opacity-100 {
-    opacity: 1;
+.contact-card p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Para el número de teléfono y texto largo */
+.contact-card .text-xs {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }

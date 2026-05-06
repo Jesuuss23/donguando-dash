@@ -10,6 +10,7 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <link rel="stylesheet" href="{{ asset('style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-gray-100 h-screen flex overflow-hidden">
 
@@ -17,6 +18,12 @@
 <div class="w-1/4 bg-white border-r flex flex-col shadow-lg z-10">
     <div class="p-4 bg-red-700 text-white shadow-md">
         <h2 class="font-bold text-xl uppercase tracking-wider text-center">Don Guando</h2>
+                  <a href="/ia-admin" target="_blank" class="text-white hover:text-gray-200 transition-colors" title="Configurar IA">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
+                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
+                </svg>
+            </a>  
     </div>
 
     <div class="p-4 border-b flex justify-around bg-gray-50">

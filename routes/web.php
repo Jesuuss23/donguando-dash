@@ -85,6 +85,7 @@ Route::post('/chat/clear-order/{contactId}', function ($contactId) {
         'producto' => null,
         'cantidad' => null,
         'direccion' => null,
+        'cliente' => null,
         'updated_at' => now()
     ]);
 
@@ -833,6 +834,53 @@ Route::post('/api/proxy/update-contact', function (Request $request) {
         'status' => $response->status(),
     ]);
 });
+
+// ========== ADMINISTRACIÓN IA ==========
+Route::get('/ia-admin', function () {
+    return view('ia-admin');
+});
+
+// Settings
+Route::get('/api/ia-settings', fn() => \App\Models\IaSetting::orderBy('order')->get());
+Route::get('/api/ia-settings/{id}', fn($id) => \App\Models\IaSetting::findOrFail($id));
+Route::post('/api/ia-settings/save', function (Request $request) {
+    \App\Models\IaSetting::updateOrCreate(['id' => $request->id], $request->except(['_token', 'id']));
+    return response()->json(['success' => true]);
+});
+Route::delete('/api/ia-settings/{id}', fn($id) => \App\Models\IaSetting::destroy($id));
+
+// FAQs
+Route::get('/api/ia-faqs', fn() => \App\Models\IaFaq::orderBy('priority')->get());
+Route::get('/api/ia-faqs/{id}', fn($id) => \App\Models\IaFaq::findOrFail($id));
+Route::post('/api/ia-faqs/save', function (Request $request) {
+    $data = $request->except(['_token', 'id']);
+    if (isset($data['keywords']) && is_string($data['keywords'])) {
+        $data['keywords'] = explode(',', $data['keywords']);
+        $data['keywords'] = array_map('trim', $data['keywords']);
+    }
+    \App\Models\IaFaq::updateOrCreate(['id' => $request->id], $data);
+    return response()->json(['success' => true]);
+});
+Route::delete('/api/ia-faqs/{id}', fn($id) => \App\Models\IaFaq::destroy($id));
+
+// Rules
+Route::get('/api/ia-rules', fn() => \App\Models\IaRule::orderBy('priority')->get());
+Route::get('/api/ia-rules/{id}', fn($id) => \App\Models\IaRule::findOrFail($id));
+Route::post('/api/ia-rules/save', function (Request $request) {
+    \App\Models\IaRule::updateOrCreate(['id' => $request->id], $request->except(['_token', 'id']));
+    return response()->json(['success' => true]);
+});
+Route::delete('/api/ia-rules/{id}', fn($id) => \App\Models\IaRule::destroy($id));
+
+// Responses
+Route::get('/api/ia-responses', fn() => \App\Models\IaResponse::all());
+Route::get('/api/ia-responses/{id}', fn($id) => \App\Models\IaResponse::findOrFail($id));
+Route::post('/api/ia-responses/save', function (Request $request) {
+    \App\Models\IaResponse::updateOrCreate(['id' => $request->id], $request->except(['_token', 'id']));
+    return response()->json(['success' => true]);
+});
+Route::delete('/api/ia-responses/{id}', fn($id) => \App\Models\IaResponse::destroy($id));
+
 // Exportar contactos a Excel
 Route::get('/export/contacts', [ExportController::class, 'exportContacts'])->name('export.contacts');
 Route::get('/export/contacts/filtered', [ExportController::class, 'exportFiltered'])->name('export.filtered');
